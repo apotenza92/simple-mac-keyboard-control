@@ -16,6 +16,8 @@ public final class BrightnessKeyListener {
         IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
     }
 
+    public var isRunning: Bool { manager != nil }
+
     @discardableResult
     public static func requestPermission() -> Bool {
         IOHIDRequestAccess(kIOHIDRequestTypeListenEvent)
@@ -23,7 +25,6 @@ public final class BrightnessKeyListener {
 
     public func start() {
         guard manager == nil else { return }
-        _ = Self.requestPermission()
         let manager = IOHIDManagerCreate(kCFAllocatorDefault, IOOptionBits(kIOHIDOptionsTypeNone))
         IOHIDManagerSetDeviceMatching(manager, [
             kIOHIDDeviceUsagePageKey: 0x01,

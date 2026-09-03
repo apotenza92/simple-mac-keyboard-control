@@ -10,7 +10,9 @@ public final class AudioController: ObservableObject {
     }
 
     @Published public private(set) var level: Level
-    @Published public private(set) var state: State = .stopped
+    @Published public private(set) var state: State = .stopped {
+        didSet { publishRuntimeState() }
+    }
     @Published public var isEnabled: Bool {
         didSet {
             defaults.set(isEnabled, forKey: Keys.enabled)
@@ -22,6 +24,9 @@ public final class AudioController: ObservableObject {
         static let enabled = "audioEnabled"
         static let percent = "volumePercent"
         static let muted = "volumeMuted"
+        static let runtimeState = "runtimeAudioState"
+        static let runtimeDevice = "runtimeAudioDevice"
+        static let runtimeReason = "runtimeAudioReason"
     }
 
     private let defaults: UserDefaults
@@ -115,7 +120,30 @@ public final class AudioController: ObservableObject {
         defaults.set(level.percent, forKey: Keys.percent)
         defaults.set(level.isMuted, forKey: Keys.muted)
         pipeline?.gain = level.gain
+        defaults.synchronize()
         objectWillChange.send()
+    }
+
+    private func publishRuntimeState() {
+        switch state {
+        case .stopped:
+            defaults.set("stopped", forKey: Keys.runtimeState)
+            defaults.removeObject(forKey: Keys.runtimeDevice)
+            defaults.removeObject(forKey: Keys.runtimeReason)
+        case .native(let device):
+            defaults.set("native", forKey: Keys.runtimeState)
+            defaults.set(device, forKey: Keys.runtimeDevice)
+            defaults.removeObject(forKey: Keys.runtimeReason)
+        case .active(let device):
+            defaults.set("active", forKey: Keys.runtimeState)
+            defaults.set(device, forKey: Keys.runtimeDevice)
+            defaults.removeObject(forKey: Keys.runtimeReason)
+        case .failed(let device, let reason):
+            defaults.set("failed", forKey: Keys.runtimeState)
+            defaults.set(device, forKey: Keys.runtimeDevice)
+            defaults.set(reason, forKey: Keys.runtimeReason)
+        }
+        defaults.synchronize()
     }
 
     private func refreshIfDeviceChanged() {

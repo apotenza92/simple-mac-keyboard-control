@@ -8,7 +8,12 @@ public final class DDCController: ObservableObject {
     private typealias TransferFunction = @convention(c)
         (CFTypeRef?, UInt32, UInt32, UnsafeMutableRawPointer, UInt32) -> IOReturn
 
-    @Published public private(set) var isAvailable = false
+    @Published public private(set) var isAvailable = false {
+        didSet {
+            defaults.set(isAvailable, forKey: "runtimeBrightnessAvailable")
+            defaults.synchronize()
+        }
+    }
     @Published public private(set) var percent = 50
     @Published public var isEnabled: Bool {
         didSet {
@@ -68,6 +73,8 @@ public final class DDCController: ObservableObject {
                 self.isAvailable = !result.services.isEmpty
                 if let current = result.current {
                     self.percent = current
+                    self.defaults.set(current, forKey: Keys.percent)
+                    self.defaults.synchronize()
                     if self.generation == generationAtStart { self.targetPercent = current }
                 }
             }
@@ -104,6 +111,7 @@ public final class DDCController: ObservableObject {
                 guard let self else { return }
                 self.percent = target
                 self.defaults.set(target, forKey: Keys.percent)
+                self.defaults.synchronize()
             }
         }
         pendingWrite = work

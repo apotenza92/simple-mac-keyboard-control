@@ -18,11 +18,12 @@ There is no Dock icon, equalizer, per-app mixer, device router, or shortcut edit
 ## Build and run
 
 ```sh
-scripts/build-app.sh
-open build/KeyControl.app
+scripts/run-dev.sh
 ```
 
-Move `KeyControl.app` to `/Applications` before enabling **Launch at login**.
+Local builds are named `KeyControl Dev.app`, use the development-only bundle identifier `com.apotenza.KeyControl.dev`, and run from the stable `~/Applications` path. Release builds remain `KeyControl.app`. Move a release app to `/Applications` before enabling **Launch at login**.
+
+Local builds automatically use an installed Apple Development certificate. Together with `scripts/run-dev.sh`, this gives the app a stable code identity and path so macOS permissions survive rebuilds. Set `KEYCONTROL_RELEASE_BUILD=1` for the release identity and `KEYCONTROL_SIGNING_IDENTITY` only when a release build needs a specific certificate.
 
 On first run, macOS asks for:
 
@@ -45,6 +46,14 @@ Brightness uses the monitor's DDC/CI luminance control. Support depends on the d
 ```sh
 scripts/test.sh
 ```
+
+With KeyControl running and permissions granted, exercise real media-key events against the selected audio interface and DDC display:
+
+```sh
+scripts/e2e-smoke.sh
+```
+
+The smoke test verifies the live pipeline, volume-down, mute, and brightness-down paths, then restores the original levels.
 
 Hardware behavior is covered by [the manual test plan](Tests/ManualTestPlan.md).
 

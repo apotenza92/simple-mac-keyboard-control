@@ -16,19 +16,31 @@ final class AppModel: ObservableObject {
         self?.handle(key, fine: fine)
     }
     private lazy var brightnessListener = BrightnessKeyListener { [weak self] isUp in
-        Task { @MainActor in self?.brightness.nudge(isUp ? Level.defaultStep : -Level.defaultStep) }
+        Task { @MainActor in
+            guard let self else { return }
+            try? await Task.sleep(nanoseconds: 50_000_000)
+            guard ProcessInfo.processInfo.systemUptime - self.lastBrightnessMediaEvent > 0.1 else { return }
+            self.brightness.nudge(isUp ? Level.defaultStep : -Level.defaultStep)
+        }
     }
     private var timer: Timer?
     private var screenObserver: NSObjectProtocol?
     private var workspaceObservers: [NSObjectProtocol] = []
+    private var lastBrightnessMediaEvent = TimeInterval.zero
     private var started = false
+    private let diagnosticsDefaults = UserDefaults.standard
 
     func start() {
         guard !started else { return }
         started = true
         audio.start()
         brightness.rediscover()
-        configureKeyCapture(prompt: true)
+        let shouldPrompt = !diagnosticsDefaults.bool(forKey: "didRequestAccessibility")
+        configureKeyCapture(prompt: shouldPrompt)
+        if shouldPrompt {
+            diagnosticsDefaults.set(true, forKey: "didRequestAccessibility")
+            diagnosticsDefaults.synchronize()
+        }
         updateBrightnessListener()
 
         keyTap.shouldConsumeVolume = { [weak self] in
@@ -37,7 +49,7 @@ final class AppModel: ObservableObject {
         keyTap.shouldHandleBrightness = { [weak self] in
             MainActor.assumeIsolated {
                 guard let self else { return false }
-                return self.brightness.isAvailable && self.brightness.hasActiveBuiltInDisplay
+                return self.brightness.isAvailable
             }
         }
 
@@ -101,7 +113,10 @@ final class AppModel: ObservableObject {
 
     func requestInputMonitoring() {
         _ = BrightnessKeyListener.requestPermission()
+        diagnosticsDefaults.set(true, forKey: "didRequestInputMonitoring")
         hasInputMonitoringPermission = BrightnessKeyListener.hasPermission
+        diagnosticsDefaults.set(hasInputMonitoringPermission, forKey: "runtimeInputMonitoringGranted")
+        diagnosticsDefaults.synchronize()
         updateBrightnessListener()
     }
 
@@ -122,6 +137,9 @@ final class AppModel: ObservableObject {
         if hasAccessibilityPermission, !keyTap.isRunning {
             _ = keyTap.start()
         }
+        diagnosticsDefaults.set(hasAccessibilityPermission, forKey: "runtimeAccessibilityTrusted")
+        diagnosticsDefaults.set(keyTap.isRunning, forKey: "runtimeEventTapRunning")
+        diagnosticsDefaults.synchronize()
     }
 
     private func updateBrightnessListener() {
@@ -129,21 +147,42 @@ final class AppModel: ObservableObject {
         let needsRawKeys = brightness.isEnabled
             && brightness.isAvailable
             && !brightness.hasActiveBuiltInDisplay
-        if needsRawKeys {
+        if needsRawKeys,
+           !hasInputMonitoringPermission,
+           !diagnosticsDefaults.bool(forKey: "didRequestInputMonitoring") {
+            _ = BrightnessKeyListener.requestPermission()
+            diagnosticsDefaults.set(true, forKey: "didRequestInputMonitoring")
+            hasInputMonitoringPermission = BrightnessKeyListener.hasPermission
+        }
+        diagnosticsDefaults.set(hasInputMonitoringPermission, forKey: "runtimeInputMonitoringGranted")
+        diagnosticsDefaults.synchronize()
+        if needsRawKeys, hasInputMonitoringPermission {
             brightnessListener.start()
         } else {
             brightnessListener.stop()
         }
+        diagnosticsDefaults.set(brightnessListener.isRunning, forKey: "runtimeBrightnessHIDRunning")
+        diagnosticsDefaults.synchronize()
     }
 
     private func handle(_ key: MediaKey, fine: Bool) {
+        diagnosticsDefaults.set(String(describing: key), forKey: "runtimeLastMediaKey")
+        diagnosticsDefaults.set(
+            diagnosticsDefaults.integer(forKey: "runtimeMediaKeyCount") + 1,
+            forKey: "runtimeMediaKeyCount"
+        )
+        diagnosticsDefaults.synchronize()
         let step = fine ? 1 : Level.defaultStep
         switch key {
         case .volumeUp: audio.nudgeVolume(step)
         case .volumeDown: audio.nudgeVolume(-step)
         case .mute: audio.toggleMute()
-        case .brightnessUp: brightness.nudge(step)
-        case .brightnessDown: brightness.nudge(-step)
+        case .brightnessUp:
+            lastBrightnessMediaEvent = ProcessInfo.processInfo.systemUptime
+            brightness.nudge(step)
+        case .brightnessDown:
+            lastBrightnessMediaEvent = ProcessInfo.processInfo.systemUptime
+            brightness.nudge(-step)
         }
     }
 }

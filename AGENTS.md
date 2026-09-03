@@ -20,4 +20,8 @@ Treat equalizers, per-app audio, device routing, custom shortcuts, display contr
 
 Run `scripts/test.sh` after every code change. For audio-path changes, also complete `Tests/ManualTestPlan.md` on one fixed-volume interface and one native-volume output. For DDC changes, complete it with an external DDC display attached.
 
+Run `scripts/e2e-smoke.sh` only with the built app open and its macOS permissions granted. It emits actual media-key events, asserts the runtime state through the app's defaults domain, and restores the original values.
+
+Keep the development bundle identifier, signing identity, and `~/Applications/KeyControl Dev.app` path stable: macOS keys TCC permissions to that identity. `scripts/run-dev.sh` owns the rebuild-install-launch loop.
+
 Source behavior targets macOS 14.4 or later. Private `IOAVService` symbols are isolated to `DDCController.swift` because they can change in a macOS update.
