@@ -1,0 +1,31 @@
+name: Hardware compatibility bug
+description: Report a volume, mute, or brightness problem
+body:
+  - type: dropdown
+    id: feature
+    attributes:
+      label: Feature
+      options: [Volume, Mute, Brightness]
+    validations:
+      required: true
+  - type: input
+    id: mac
+    attributes:
+      label: Mac and macOS version
+      placeholder: MacBook Pro M3, macOS 15.6
+    validations:
+      required: true
+  - type: input
+    id: hardware
+    attributes:
+      label: Audio interface or display
+      placeholder: Scarlett 2i2 4th Gen or Dell U2723QE over USB-C
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: What happened?
+      description: Include the expected result, actual result, connection type, and reproducible steps.
+    validations:
+      required: true
