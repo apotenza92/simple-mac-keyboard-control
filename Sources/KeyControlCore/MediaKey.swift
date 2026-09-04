@@ -36,4 +36,12 @@ public enum MediaKeyEvent {
         }
         return (key, state == 0x0A)
     }
+
+    public static func decodeFunctionKey(keyCode: Int64) -> MediaKey? {
+        switch keyCode {
+        case 122, 107: return .brightnessDown // F1 or F14
+        case 120, 113: return .brightnessUp   // F2 or F15
+        default: return nil
+        }
+    }
 }

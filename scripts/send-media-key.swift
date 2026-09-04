@@ -3,7 +3,7 @@
 import AppKit
 import Foundation
 
-let keyCodes: [String: Int64] = [
+let mediaKeyCodes: [String: Int64] = [
     "volume-up": 0,
     "volume-down": 1,
     "brightness-up": 2,
@@ -11,9 +11,26 @@ let keyCodes: [String: Int64] = [
     "mute": 7,
 ]
 
-guard CommandLine.arguments.count == 2,
-      let keyCode = keyCodes[CommandLine.arguments[1]] else {
-    FileHandle.standardError.write(Data("usage: send-media-key.swift volume-up|volume-down|mute|brightness-up|brightness-down\n".utf8))
+guard CommandLine.arguments.count == 2 else {
+    FileHandle.standardError.write(Data("usage: send-media-key.swift volume-up|volume-down|mute|brightness-up|brightness-down|f1|f2|f14|f15\n".utf8))
+    exit(2)
+}
+
+let requestedKey = CommandLine.arguments[1]
+
+if let virtualKey: CGKeyCode = ["f1": 122, "f2": 120, "f14": 107, "f15": 113][requestedKey] {
+    let down = CGEvent(keyboardEventSource: nil, virtualKey: virtualKey, keyDown: true)
+    down?.flags = []
+    down?.post(tap: .cghidEventTap)
+    usleep(20_000)
+    let up = CGEvent(keyboardEventSource: nil, virtualKey: virtualKey, keyDown: false)
+    up?.flags = []
+    up?.post(tap: .cghidEventTap)
+    exit(0)
+}
+
+guard let keyCode = mediaKeyCodes[requestedKey] else {
+    FileHandle.standardError.write(Data("unknown key: \(requestedKey)\n".utf8))
     exit(2)
 }
 

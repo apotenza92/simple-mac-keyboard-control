@@ -5,10 +5,10 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${repo_dir}/scripts/xcode-env.sh"
 
 if [[ "${KEYCONTROL_RELEASE_BUILD:-0}" == "1" ]]; then
-    display_name="KeyControl"
+    display_name="Simple Mac Keyboard Control"
     bundle_identifier="com.apotenza.KeyControl"
 else
-    display_name="KeyControl Dev"
+    display_name="Simple Mac Keyboard Control Dev"
     bundle_identifier="com.apotenza.KeyControl.dev"
 fi
 app_dir="${repo_dir}/build/${display_name}.app"
@@ -18,6 +18,9 @@ build_dir="$(swift build --package-path "${repo_dir}" -c release --show-bin-path
 
 rm -rf "${app_dir:?}"
 mkdir -p "${app_dir}/Contents/MacOS"
+mkdir -p "${app_dir}/Contents/Resources"
+swift "${repo_dir}/scripts/render-icon.swift" "${repo_dir}/build/AppIcon.iconset"
+iconutil -c icns "${repo_dir}/build/AppIcon.iconset" -o "${app_dir}/Contents/Resources/AppIcon.icns"
 cp "${build_dir}/KeyControl" "${app_dir}/Contents/MacOS/KeyControl"
 cp "${repo_dir}/Resources/Info.plist" "${app_dir}/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${display_name}" "${app_dir}/Contents/Info.plist"

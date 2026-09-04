@@ -8,6 +8,7 @@ final class AppModel: ObservableObject {
     let audio = AudioController()
     let brightness = DDCController()
     let launchAtLogin = LaunchAtLoginController()
+    private let osd = OSDPresenter()
 
     @Published private(set) var hasAccessibilityPermission = AXIsProcessTrusted()
     @Published private(set) var hasInputMonitoringPermission = BrightnessKeyListener.hasPermission
@@ -21,6 +22,7 @@ final class AppModel: ObservableObject {
             try? await Task.sleep(nanoseconds: 50_000_000)
             guard ProcessInfo.processInfo.systemUptime - self.lastBrightnessMediaEvent > 0.1 else { return }
             self.brightness.nudge(isUp ? Level.defaultStep : -Level.defaultStep)
+            self.showBrightnessOSD()
         }
     }
     private var timer: Timer?
@@ -129,6 +131,14 @@ final class AppModel: ObservableObject {
         NSApp.terminate(nil)
     }
 
+    var brightnessDeviceName: String {
+        guard let displayID = brightness.targetDisplayID else { return "Display Brightness" }
+        return NSScreen.screens.first { screen in
+            (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+                == displayID
+        }?.localizedName ?? "Display Brightness"
+    }
+
     private func configureKeyCapture(prompt: Bool) {
         hasAccessibilityPermission = AXIsProcessTrusted()
         if !hasAccessibilityPermission, prompt {
@@ -174,15 +184,45 @@ final class AppModel: ObservableObject {
         diagnosticsDefaults.synchronize()
         let step = fine ? 1 : Level.defaultStep
         switch key {
-        case .volumeUp: audio.nudgeVolume(step)
-        case .volumeDown: audio.nudgeVolume(-step)
-        case .mute: audio.toggleMute()
+        case .volumeUp:
+            audio.nudgeVolume(step)
+            showVolumeOSD()
+        case .volumeDown:
+            audio.nudgeVolume(-step)
+            showVolumeOSD()
+        case .mute:
+            audio.toggleMute()
+            showVolumeOSD()
         case .brightnessUp:
             lastBrightnessMediaEvent = ProcessInfo.processInfo.systemUptime
             brightness.nudge(step)
+            showBrightnessOSD()
         case .brightnessDown:
             lastBrightnessMediaEvent = ProcessInfo.processInfo.systemUptime
             brightness.nudge(-step)
+            showBrightnessOSD()
+        }
+    }
+
+    private func showVolumeOSD() {
+        let kind: OSDPresenter.Kind = audio.level.isMuted ? .muted : .volume
+        let name = audio.deviceName ?? "Volume"
+        let percent = audio.level.percent
+        DispatchQueue.main.async { [weak self] in
+            self?.osd.show(kind: kind, name: name, percent: percent)
+        }
+    }
+
+    private func showBrightnessOSD() {
+        let displayID = brightness.targetDisplayID
+        let screen = NSScreen.screens.first { screen in
+            (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
+                == displayID
+        }
+        let name = screen?.localizedName ?? brightnessDeviceName
+        let percent = brightness.pendingPercent
+        DispatchQueue.main.async { [weak self] in
+            self?.osd.show(kind: .brightness, name: name, percent: percent, displayID: displayID)
         }
     }
 }

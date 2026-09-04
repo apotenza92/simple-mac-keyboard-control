@@ -31,7 +31,7 @@ public final class MediaKeyTap {
             tap: .cgSessionEventTap,
             place: .headInsertEventTap,
             options: .defaultTap,
-            eventsOfInterest: CGEventMask(1 << Self.systemDefined),
+            eventsOfInterest: CGEventMask(1 << Self.systemDefined) | CGEventMask(1 << CGEventType.keyDown.rawValue),
             callback: callback,
             userInfo: Unmanaged.passUnretained(self).toOpaque()
         ) else { return false }
@@ -57,6 +57,13 @@ public final class MediaKeyTap {
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return Unmanaged.passUnretained(event)
         }
+        if type == .keyDown,
+           let key = MediaKeyEvent.decodeFunctionKey(keyCode: event.getIntegerValueField(.keyboardEventKeycode)),
+           shouldHandleBrightness(),
+           Self.shouldUseFunctionKeysForBrightness {
+            handler(key, event.flags.contains(.maskShift))
+            return nil
+        }
         guard type.rawValue == Self.systemDefined,
               let nsEvent = NSEvent(cgEvent: event),
               nsEvent.subtype.rawValue == Self.auxiliaryButtons,
@@ -75,6 +82,10 @@ public final class MediaKeyTap {
         guard shouldConsumeVolume() else { return Unmanaged.passUnretained(event) }
         if decoded.isKeyDown { handler(decoded.key, event.flags.contains(.maskShift)) }
         return nil
+    }
+
+    private static var shouldUseFunctionKeysForBrightness: Bool {
+        !UserDefaults.standard.bool(forKey: "com.apple.keyboard.fnState")
     }
 
     deinit { stop() }

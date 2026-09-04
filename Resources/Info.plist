@@ -5,7 +5,9 @@
     <key>CFBundleDevelopmentRegion</key>
     <string>en</string>
     <key>CFBundleDisplayName</key>
-    <string>KeyControl</string>
+    <string>Simple Mac Keyboard Control</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
     <key>CFBundleExecutable</key>
     <string>KeyControl</string>
     <key>CFBundleIdentifier</key>
@@ -13,7 +15,7 @@
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
     <key>CFBundleName</key>
-    <string>KeyControl</string>
+    <string>Simple Mac Keyboard Control</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -25,9 +27,9 @@
     <key>LSUIElement</key>
     <true/>
     <key>NSAudioCaptureUsageDescription</key>
-    <string>KeyControl routes system audio only to apply volume and mute before sending it to your selected output. Audio is never recorded or stored.</string>
+    <string>Simple Mac Keyboard Control routes system audio only to apply volume and mute before sending it to your selected output. Audio is never recorded or stored.</string>
     <key>NSInputMonitoringUsageDescription</key>
-    <string>KeyControl listens only for brightness keys when macOS does not expose them for an external monitor.</string>
+    <string>Simple Mac Keyboard Control listens only for brightness keys when macOS does not expose them for an external monitor.</string>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

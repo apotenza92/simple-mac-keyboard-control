@@ -18,7 +18,7 @@ struct KeyControlApp: App {
             KeyControlMenu(model: model)
         } label: {
             Image(systemName: "keyboard.badge.ellipsis")
-                .accessibilityLabel("KeyControl")
+                .accessibilityLabel("Simple Mac Keyboard Control")
         }
         .menuBarExtraStyle(.window)
     }
@@ -40,7 +40,7 @@ private struct KeyControlMenu: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                Text("KeyControl")
+                Text("Simple Mac Keyboard Control")
                     .font(.headline)
                 Spacer()
                 Circle()
@@ -50,25 +50,27 @@ private struct KeyControlMenu: View {
             }
 
             controlSection(
-                title: audio.level.isMuted ? "Muted" : "Volume",
-                symbol: audio.level.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill",
+                title: audio.deviceName ?? "Audio Output",
+                leadingSymbol: "speaker.fill",
+                trailingSymbol: "speaker.wave.3.fill",
                 value: Binding(
                     get: { Double(audio.level.percent) },
                     set: { audio.setVolume(Int($0.rounded())) }
                 ),
-                trailing: "\(audio.level.percent)%"
+                isMuted: audio.level.isMuted
             )
             .opacity(audio.isEnabled ? 1 : 0.45)
 
             if brightness.isAvailable {
                 controlSection(
-                    title: "Brightness",
-                    symbol: "sun.max.fill",
+                    title: model.brightnessDeviceName,
+                    leadingSymbol: "sun.min.fill",
+                    trailingSymbol: "sun.max.fill",
                     value: Binding(
                         get: { Double(brightness.percent) },
                         set: { brightness.set(Int($0.rounded())) }
                     ),
-                    trailing: "\(brightness.percent)%"
+                    isMuted: false
                 )
                 .opacity(brightness.isEnabled ? 1 : 0.45)
             }
@@ -100,11 +102,6 @@ private struct KeyControlMenu: View {
                 )
             }
 
-            Text(statusText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-
             if let error = launchAtLogin.errorMessage {
                 Text(error)
                     .font(.caption)
@@ -129,17 +126,27 @@ private struct KeyControlMenu: View {
 
     private func controlSection(
         title: String,
-        symbol: String,
+        leadingSymbol: String,
+        trailingSymbol: String,
         value: Binding<Double>,
-        trailing: String
+        isMuted: Bool
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Label(title, systemImage: symbol)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
                 Spacer()
-                Text(trailing).monospacedDigit().foregroundStyle(.secondary)
+                Text("\(Int(value.wrappedValue.rounded()))%")
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
             }
-            Slider(value: value, in: 0...100, step: 1)
+            MenuLevelMeter(
+                value: value,
+                isMuted: isMuted,
+                leadingSymbol: leadingSymbol,
+                trailingSymbol: trailingSymbol
+            )
         }
     }
 
@@ -171,5 +178,62 @@ private struct KeyControlMenu: View {
         case .stopped:
             return "Volume key control is off."
         }
+    }
+}
+
+private struct MenuLevelMeter: View {
+    @Binding var value: Double
+    let isMuted: Bool
+    let leadingSymbol: String
+    let trailingSymbol: String
+
+    var body: some View {
+        HStack(spacing: 7) {
+            Image(systemName: leadingSymbol)
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 12)
+            VStack(spacing: 5) {
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(.secondary.opacity(0.22))
+                        Capsule()
+                            .fill(.primary.opacity(0.82))
+                            .frame(width: geometry.size.width * displayedFraction)
+                    }
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0).onChanged { gesture in
+                            value = min(max(gesture.location.x / geometry.size.width * 100, 0), 100)
+                        }
+                    )
+                }
+                .frame(height: 4)
+                HStack(spacing: 0) {
+                    ForEach(0..<16, id: \.self) { index in
+                        Circle().fill(.secondary.opacity(0.24)).frame(width: 2, height: 2)
+                        if index != 15 { Spacer() }
+                    }
+                }
+                .frame(height: 2)
+            }
+            Image(systemName: trailingSymbol)
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 14)
+        }
+        .frame(height: 14)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(isMuted ? "Muted" : "Level")
+        .accessibilityValue("\(Int(value.rounded())) percent")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment: value = min(value + 1, 100)
+            case .decrement: value = max(value - 1, 0)
+            @unknown default: break
+            }
+        }
+    }
+
+    private var displayedFraction: CGFloat {
+        isMuted ? 0 : CGFloat(value) / 100
     }
 }

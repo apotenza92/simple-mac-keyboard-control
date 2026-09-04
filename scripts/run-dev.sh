@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-source_app="${repo_dir}/build/KeyControl Dev.app"
+source_app="${repo_dir}/build/Simple Mac Keyboard Control Dev.app"
 install_dir="${HOME}/Applications"
 installed_app="${install_dir}/KeyControl Dev.app"
 

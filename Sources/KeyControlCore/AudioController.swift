@@ -46,6 +46,14 @@ public final class AudioController: ObservableObject {
         return false
     }
 
+    public var deviceName: String? {
+        switch state {
+        case .native(let device), .active(let device): return device
+        case .failed(let device, _): return device
+        case .stopped: return nil
+        }
+    }
+
     public func start() {
         refresh()
         refreshTimer?.invalidate()

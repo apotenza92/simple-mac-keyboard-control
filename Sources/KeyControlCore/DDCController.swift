@@ -58,6 +58,16 @@ public final class DDCController: ObservableObject {
         return displays.prefix(Int(count)).contains { CGDisplayIsBuiltin($0) != 0 }
     }
 
+    public var targetDisplayID: CGDirectDisplayID? {
+        var count: UInt32 = 0
+        guard CGGetActiveDisplayList(0, nil, &count) == .success else { return nil }
+        var displays = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard CGGetActiveDisplayList(count, &displays, &count) == .success else { return nil }
+        return displays.prefix(Int(count)).first { CGDisplayIsBuiltin($0) == 0 }
+    }
+
+    public var pendingPercent: Int { targetPercent }
+
     public func rediscover() {
         guard isEnabled else { return }
         let generationAtStart = generation
