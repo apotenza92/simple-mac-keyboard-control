@@ -56,7 +56,7 @@ a macOS 15 runner asset-runtime crash without substituting raster artwork.
    Sparkle signatures, and tamper rejection.
 5. After native package validation, the secret-free publication job attests the Homebrew
    bundle, publishes the immutable release, and advances feeds without downgrades.
-6. The tap's hourly reconciliation discovers the attested release and publishes
+6. The tap's scheduled reconciliation discovers the attested release and publishes
    the approved casks through its protected publisher. For immediate publication,
    dispatch `publish-homebrew.yml` in `apotenza92/homebrew-tap` with product, tag,
    commit, source run ID/attempt, and correlation ID. Source jobs have no tap write token.
