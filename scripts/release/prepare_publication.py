@@ -60,6 +60,14 @@ def prepare(tag, assets, output, private_key):
             ET.ElementTree(rss).write(feeds / f'{channel}-{arch}.xml', encoding='utf-8', xml_declaration=True)
             cask_url = url.replace(tag, 'v#{version}')
             sections.append(f'  on_{"arm" if arch == "arm64" else "intel"} do\n    sha256 "{digest}"\n\n    url "{cask_url}"\n  end')
+        livecheck = '  livecheck do\n    url :url\n    strategy :github_latest\n  end' if channel == 'stable' else f"""  livecheck do
+    url "https://api.github.com/repos/{REPOSITORY}/releases"
+    strategy :json do |json|
+      json
+        .reject {{ |release| release["draft"] }}
+        .map {{ |release| release["tag_name"].delete_prefix("v") }}
+    end
+  end"""
         (casks / filename).write_text(f'''cask "{token}" do
   version "{tag[1:]}"
 
@@ -68,6 +76,8 @@ def prepare(tag, assets, output, private_key):
   name "{item['name']}"
   desc "Volume and brightness keys for external devices"
   homepage "https://github.com/{REPOSITORY}"
+
+{livecheck}
 
   auto_updates true
   depends_on macos: :sonoma

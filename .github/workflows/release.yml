@@ -21,6 +21,10 @@ jobs:
         with:
           python-version: '3.13'
       - run: python3 -m pip install 'cryptography==45.0.7'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node --test scripts/release/test_downloads.mjs
       - name: Validate release source and notes
         env:
           RELEASE_TAG: ${{ github.ref_name }}
