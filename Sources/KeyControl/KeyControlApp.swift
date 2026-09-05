@@ -11,7 +11,9 @@ struct KeyControlApp: App {
         NSApplication.shared.setActivationPolicy(.accessory)
         let model = AppModel()
         _model = StateObject(wrappedValue: model)
-        DispatchQueue.main.async { model.start() }
+        DispatchQueue.main.async {
+            if UpdateTestSession.current == nil { model.start() }
+        }
         NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { _ in
             MainActor.assumeIsolated { model.stop() }
         }

@@ -164,7 +164,13 @@ jobs:
         run: |
           for channel in $(python3 -c 'import sys; sys.path.insert(0,"scripts/release"); from contract import parse_tag; print(" ".join(parse_tag(sys.argv[1])["channels"]))' "$RELEASE_TAG"); do
             /tmp/release-tools/bin/python scripts/release/verify_package.py "$RELEASE_TAG" "$channel" "$RELEASE_ARCH" dist publication-output/appcasts
+            python3 scripts/release/update_gate.py "$RELEASE_TAG" "$channel" "$RELEASE_ARCH" dist publication-output/appcasts "update-$channel-$RELEASE_ARCH.json"
           done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: update-evidence-${{ matrix.arch }}
+          path: update-*.json
+          if-no-files-found: error
   publish:
     needs: validate
     runs-on: ubuntu-latest
@@ -207,7 +213,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = false
+          python3 scripts/release/verify_public.py publication-output/publication/manifest.json
           for file in appcasts/*.xml; do
             curl --fail --location --retry 5 "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/$(git rev-parse HEAD)/appcasts/$(basename "$file")" -o /tmp/feed.xml
             cmp "$file" /tmp/feed.xml

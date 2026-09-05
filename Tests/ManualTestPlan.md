@@ -9,6 +9,8 @@ and hardware/OS assumptions are unchanged.
 
 | Change | Verification needed |
 |---|---|
+| Every release | Both architecture builds/tests, signing/notarization, signed archives, download/Homebrew checks, and N-1 Sparkle installation after the first baseline |
+| App binary changes | Brief launch, affected controls, quit/relaunch smoke on representative hardware; use `scripts/release/lifecycle_smoke.py` for recorded recovery |
 | Icons, naming, website, release metadata | Asset/build/download checks; no audio or DDC hardware retest |
 | Menu or HUD presentation | Inspect the affected controls/appearance; smoke-test changed key interactions |
 | Gain, mute, audio buffers, tap/aggregate routing | Fixed-volume playback, held keys, mute/unmute, quit restoration, and native-output passthrough |
