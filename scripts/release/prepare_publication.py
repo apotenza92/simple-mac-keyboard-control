@@ -58,18 +58,21 @@ def prepare(tag, assets, output, private_key):
             ET.SubElement(release, 'enclosure', {'url': url, 'length': str(len(data)), 'type': 'application/octet-stream', f'{{{NS}}}edSignature': base64.b64encode(signature).decode()})
             ET.indent(rss)
             ET.ElementTree(rss).write(feeds / f'{channel}-{arch}.xml', encoding='utf-8', xml_declaration=True)
-            sections.append(f'  on_{"arm" if arch == "arm64" else "intel"} do\n    sha256 "{digest}"\n    url "{url}"\n  end')
+            sections.append(f'  on_{"arm" if arch == "arm64" else "intel"} do\n    sha256 "{digest}"\n\n    url "{url}"\n  end')
         (casks / filename).write_text(f'''cask "{token}" do
   version "{tag[1:]}"
 
 {chr(10).join(sections)}
 
   name "{item['name']}"
-  desc "Volume and brightness keys for external Mac devices"
+  desc "Volume and brightness keys for external devices"
   homepage "https://github.com/{REPOSITORY}"
+
   auto_updates true
   depends_on macos: :sonoma
+
   app "{item['name']}.app"
+
   zap trash: [
     "~/Library/Caches/{item['bundle_id']}",
     "~/Library/Preferences/{item['bundle_id']}.plist",

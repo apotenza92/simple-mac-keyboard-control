@@ -152,6 +152,8 @@ jobs:
           name: signed-publication
           path: publication-output
       - run: python3 -m venv /tmp/release-tools && /tmp/release-tools/bin/pip install 'cryptography==45.0.7'
+      - name: Validate generated cask style
+        run: HOMEBREW_NO_AUTO_UPDATE=1 brew style publication-output/publication/Casks/*.rb
       - name: Validate signatures, notarization, identity, and architecture
         env:
           RELEASE_TAG: ${{ github.ref_name }}
