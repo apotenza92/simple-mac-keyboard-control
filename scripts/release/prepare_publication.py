@@ -58,7 +58,8 @@ def prepare(tag, assets, output, private_key):
             ET.SubElement(release, 'enclosure', {'url': url, 'length': str(len(data)), 'type': 'application/octet-stream', f'{{{NS}}}edSignature': base64.b64encode(signature).decode()})
             ET.indent(rss)
             ET.ElementTree(rss).write(feeds / f'{channel}-{arch}.xml', encoding='utf-8', xml_declaration=True)
-            sections.append(f'  on_{"arm" if arch == "arm64" else "intel"} do\n    sha256 "{digest}"\n\n    url "{url}"\n  end')
+            cask_url = url.replace(tag, 'v#{version}')
+            sections.append(f'  on_{"arm" if arch == "arm64" else "intel"} do\n    sha256 "{digest}"\n\n    url "{cask_url}"\n  end')
         (casks / filename).write_text(f'''cask "{token}" do
   version "{tag[1:]}"
 

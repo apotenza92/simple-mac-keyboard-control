@@ -34,6 +34,9 @@ class PublicationTests(unittest.TestCase):
                     with patch.dict(os.environ,GITHUB_SHA='a'*40,GITHUB_RUN_ID='1',GITHUB_RUN_ATTEMPT='1'):
                         prepare(tag,Path('assets'),Path('out'),private)
                     self.assertEqual(len(list(Path('out/appcasts').glob('*.xml'))),expected)
+                    for cask in Path('out/publication/Casks').glob('*.rb'):
+                        self.assertIn('v#{version}', cask.read_text())
+                        self.assertNotIn('sha256 :no_check', cask.read_text())
                     Path('installed').mkdir(); install(Path('out/appcasts'),Path('installed'))
                     before={p.name:p.read_bytes() for p in Path('installed').glob('*.xml')}
                     install(Path('out/appcasts'),Path('installed'))
