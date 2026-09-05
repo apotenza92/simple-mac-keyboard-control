@@ -213,3 +213,17 @@ unchanged development identity and path.
   appearance, cable disconnect/reconnect, or sleep/wake behavior. Those manual
   checks remain unconfirmed; the automated evidence alone does not establish
   those observations.
+
+## Automated release regime — 2026-09-05
+
+- Released source `c458eda0bb74049dc5ef787e9a6ac18325911b68`: 18 native tests
+  passed on ARM and Intel. All four signed/notarized packages passed independent
+  identity, archive signature/tamper, Gatekeeper, and public-byte verification.
+- The new lifecycle script passed on the permitted Dev app with the Scarlett:
+  normal quit stopped the pipeline, and relaunch restored the same output and
+  saved gain. The accompanying real-key/HUD smoke passed on Scarlett and AW3425DWM.
+- Update evidence explicitly records `baseline-only` for 0.1.0 on all four paths.
+  It does not claim an N-1 install happened. Later releases require installation
+  and relaunch from the previous public version, except a retained newer beta.
+- Listening quality and physical sleep/cable recovery remain human observations;
+  the automated evidence does not assert them.
