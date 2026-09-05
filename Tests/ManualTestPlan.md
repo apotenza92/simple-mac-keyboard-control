@@ -1,5 +1,34 @@
 # Manual test plan
 
+## Selecting checks
+
+Use this plan as a set of targeted checks. It is not a checklist to repeat in full
+for every tag. Record the source build, devices, results, and any unverified
+observations. Earlier evidence remains useful when the relevant implementation
+and hardware/OS assumptions are unchanged.
+
+| Change | Verification needed |
+|---|---|
+| Icons, naming, website, release metadata | Asset/build/download checks; no audio or DDC hardware retest |
+| Menu or HUD presentation | Inspect the affected controls/appearance; smoke-test changed key interactions |
+| Gain, mute, audio buffers, tap/aggregate routing | Fixed-volume playback, held keys, mute/unmute, quit restoration, and native-output passthrough |
+| Output observation, device switching, teardown | Switch fixed/native outputs and verify restoration; disconnect/reconnect when that handling changes |
+| Sleep/wake handling | Real sleep/wake recovery on the affected audio/display path |
+| DDC transport, discovery, display matching | Working-DDC read/write and correct physical monitor response; reconnect when discovery changes |
+| Software dimming, linking, display lifecycle | Affected external/built-in isolation, linking, minimum visibility, Spaces, and shade cleanup checks |
+| Updater/install/relaunch changes | Signed update installation and relaunch; verify affected runtime cleanup |
+| First stable release or substantial platform rewrite | Establish a representative baseline using the applicable sections below |
+
+Unit tests cover level math, native-channel balance, key decoding, DDC packet
+validation, and linking decisions. `scripts/e2e-smoke.sh` exercises actual media
+keys, HUD/runtime state, and restoration on an already permitted running app.
+Neither establishes audible quality, physical brightness, cable recovery, or
+sleep/wake behavior. A simulated notification is not proof of real sleep/wake.
+
+Run physical tests for changed behavior and relevant bug reports. Do not repeat
+unrelated tests merely because a version or icon changed. Keep missing evidence
+explicit, and never turn an unperformed test into a recorded pass.
+
 ## Fixed-volume audio interface
 
 1. Select the Scarlett or another fixed-volume interface as the macOS output.
@@ -180,5 +209,5 @@ unchanged development identity and path.
 - These automated checks establish routing/controller/HUD state and recovery.
   They do not establish audible quality, pops/stalls, physical brightness
   appearance, cable disconnect/reconnect, or sleep/wake behavior. Those manual
-  checks remain unconfirmed; do not set the release hardware-verification gate
-  from this automated evidence alone.
+  checks remain unconfirmed; the automated evidence alone does not establish
+  those observations.

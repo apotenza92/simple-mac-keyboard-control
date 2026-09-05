@@ -182,10 +182,6 @@ jobs:
         with:
           name: signed-publication
           path: publication-output
-      - name: Require hardware release verification
-        env:
-          VERIFIED_COMMIT: ${{ vars.HARDWARE_VERIFIED_COMMIT }}
-        run: test "$VERIFIED_COMMIT" = "$GITHUB_SHA"
       - name: Attest reviewed Homebrew bundle
         uses: actions/attest-build-provenance@v2
         with:

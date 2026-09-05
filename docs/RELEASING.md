@@ -36,18 +36,18 @@ a macOS 15 runner asset-runtime crash without substituting raster artwork.
 ## Tag-driven publication
 
 1. Run `scripts/test.sh`, Python release tests with `cryptography==45.0.7`, Node
-   download tests, and actionlint. Complete `Tests/ManualTestPlan.md` on both
-   fixed-volume/native-volume outputs and a working external DDC display.
-2. Add `release-notes/vX.Y.Z.md`, commit, and push main. Record the exact hardware-
-   verified commit as `HARDWARE_VERIFIED_COMMIT` in the final stable-release or
-   beta-release environment. This is verification evidence, never an inferred pass.
+   download tests, and actionlint as applicable to the changes. Select hardware
+   checks using `Tests/ManualTestPlan.md`; reuse evidence for unchanged behavior.
+   Record relevant results and gaps, including the first-stable hardware baseline.
+2. Add `release-notes/vX.Y.Z.md`, commit, and push main. Hardware observations are
+   recorded evidence, not a blanket per-commit environment-variable approval.
 3. Push the tag. The workflow requires the tagged commit to be reachable from main.
    Native ARM and Intel jobs build, sign, notarize, staple, and package each identity.
 4. The workflow stages a draft, signs exact Sparkle archives, and seals the common
    Homebrew publication bundle. Independent native jobs verify identity, version,
    architecture, code-signing certificate, hardened runtime, Gatekeeper, notarization,
    Sparkle signatures, and tamper rejection.
-5. After the hardware gate, the secret-free publication job attests the Homebrew
+5. After native package validation, the secret-free publication job attests the Homebrew
    bundle, publishes the immutable release, and advances feeds without downgrades.
 6. The tap's hourly reconciliation discovers the attested release and publishes
    the approved casks through its protected publisher. For immediate publication,
@@ -64,6 +64,6 @@ public release/download access; repository visibility is not changed by the scri
 
 ## Current launch status
 
-The release wiring is implemented. First publication remains gated on recorded
-hardware verification and successful native CI. Do not describe the app as
+The release wiring is implemented. Review the recorded first-release hardware
+evidence and remaining gaps alongside successful native CI. Do not describe the app as
 released or Homebrew-installable until public artifacts and casks are verified.

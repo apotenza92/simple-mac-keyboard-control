@@ -19,7 +19,11 @@ Treat equalizers, per-app audio, device routing, custom shortcuts, and display c
 
 ## Verification
 
-Run `scripts/test.sh` after every code change. For audio-path changes, also complete `Tests/ManualTestPlan.md` on one fixed-volume interface and one native-volume output. For DDC changes, complete it with an external DDC display attached.
+Run `scripts/test.sh` after application or build-code changes. Run the relevant release, download, or workflow checks for distribution changes. Documentation-only edits do not require rebuilding the app.
+
+Choose hardware verification from the behavior changed, using the coverage matrix in `Tests/ManualTestPlan.md`. Audio processing/routing changes need fixed-volume playback and native-output passthrough checks; DDC transport/discovery changes need a working DDC display. Test disconnect/reconnect or sleep/wake when their handling changes or a regression involves them. UI changes need the affected UI checks, not the entire hardware plan. Branding, website, and release-metadata changes do not require unrelated hardware retests.
+
+Establish a hardware baseline for the first stable release, and broaden it after substantial audio/display rewrites or relevant macOS/driver compatibility changes. Reuse recorded evidence for unchanged behavior; record the tested build, hardware, result, and remaining gaps. Do not describe controller-state assertions as audible or physical verification. A known regression in an affected safety invariant blocks release until resolved. Missing human observations must be reported accurately; do not fabricate passes or add a blanket per-commit hardware approval gate.
 
 Run `scripts/e2e-smoke.sh` only with the built app open and its macOS permissions granted. It emits actual media-key events, asserts the runtime state through the app's defaults domain, and restores the original values.
 
