@@ -2,6 +2,7 @@ import AppKit
 import ApplicationServices
 import Combine
 import KeyControlCore
+import SwiftUI
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -21,8 +22,9 @@ final class AppModel: ObservableObject {
             guard let self else { return }
             try? await Task.sleep(nanoseconds: 50_000_000)
             guard ProcessInfo.processInfo.systemUptime - self.lastBrightnessMediaEvent > 0.1 else { return }
-            self.brightness.nudge(isUp ? Level.defaultStep : -Level.defaultStep)
-            self.showBrightnessOSD()
+            self.brightness.nudge(isUp ? Level.defaultStep : -Level.defaultStep) { [weak self] in
+                self?.showBrightnessOSD()
+            }
         }
     }
     private var timer: Timer?
@@ -30,19 +32,19 @@ final class AppModel: ObservableObject {
     private var workspaceObservers: [NSObjectProtocol] = []
     private var lastBrightnessMediaEvent = TimeInterval.zero
     private var started = false
+    private var setupWindow: NSWindow?
     private let diagnosticsDefaults = UserDefaults.standard
 
     func start() {
         guard !started else { return }
         started = true
-        audio.start()
+        // Existing installs keep their behaviour. Fresh installs start with an
+        // explanation, and request access only from the corresponding button.
+        let needsSetup = !diagnosticsDefaults.bool(forKey: "didRequestAccessibility")
+            && !diagnosticsDefaults.bool(forKey: "hasCompletedSetup")
+        if !needsSetup { audio.start() }
         brightness.rediscover()
-        let shouldPrompt = !diagnosticsDefaults.bool(forKey: "didRequestAccessibility")
-        configureKeyCapture(prompt: shouldPrompt)
-        if shouldPrompt {
-            diagnosticsDefaults.set(true, forKey: "didRequestAccessibility")
-            diagnosticsDefaults.synchronize()
-        }
+        configureKeyCapture(prompt: false)
         updateBrightnessListener()
 
         keyTap.shouldConsumeVolume = { [weak self] in
@@ -52,6 +54,13 @@ final class AppModel: ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return false }
                 return self.brightness.isAvailable
+            }
+        }
+
+        keyTap.shouldConsumeBrightness = { [weak self] in
+            MainActor.assumeIsolated {
+                guard let self else { return false }
+                return self.brightness.shouldConsumeBrightnessKeys
             }
         }
 
@@ -79,6 +88,7 @@ final class AppModel: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in self?.audio.stop() }
         })
+        if needsSetup || ProcessInfo.processInfo.arguments.contains("--onboarding") { showSetupGuide() }
         workspaceObservers.append(workspaceCenter.addObserver(
             forName: NSWorkspace.didWakeNotification,
             object: nil,
@@ -103,11 +113,13 @@ final class AppModel: ObservableObject {
         workspaceObservers.removeAll()
         keyTap.stop()
         brightnessListener.stop()
+        brightness.stop()
         audio.stop()
         started = false
     }
 
     func requestAccessibility() {
+        diagnosticsDefaults.set(true, forKey: "didRequestAccessibility")
         let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         hasAccessibilityPermission = AXIsProcessTrustedWithOptions(options)
         if hasAccessibilityPermission { _ = keyTap.start() }
@@ -116,15 +128,46 @@ final class AppModel: ObservableObject {
     func requestInputMonitoring() {
         _ = BrightnessKeyListener.requestPermission()
         diagnosticsDefaults.set(true, forKey: "didRequestInputMonitoring")
-        hasInputMonitoringPermission = BrightnessKeyListener.hasPermission
+        let granted = BrightnessKeyListener.hasPermission
+        if hasInputMonitoringPermission != granted { hasInputMonitoringPermission = granted }
         diagnosticsDefaults.set(hasInputMonitoringPermission, forKey: "runtimeInputMonitoringGranted")
-        diagnosticsDefaults.synchronize()
         updateBrightnessListener()
     }
 
-    func openPrivacySettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy") else { return }
-        NSWorkspace.shared.open(url)
+    enum PrivacyPane: String {
+        case accessibility = "Privacy_Accessibility"
+        case inputMonitoring = "Privacy_ListenEvent"
+        case systemAudio = "Privacy_ScreenCapture"
+    }
+
+    func openPrivacySettings(_ pane: PrivacyPane) {
+        let base = "x-apple.systempreferences:com.apple.preference.security"
+        guard let target = URL(string: "\(base)?\(pane.rawValue)") else { return }
+        if !NSWorkspace.shared.open(target), let fallback = URL(string: "\(base)?Privacy") {
+            NSWorkspace.shared.open(fallback)
+        }
+    }
+
+    func showSetupGuide() {
+        if let setupWindow {
+            setupWindow.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
+        let window = NSWindow(contentRect: NSRect(origin: .zero, size: SetupGuideView.windowSize),
+                              styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        window.title = "Set up \(AppIdentity.name)"
+        window.isReleasedWhenClosed = false
+        window.contentView = NSHostingView(rootView: SetupGuideView(model: self))
+        window.center()
+        setupWindow = window
+        window.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+    }
+
+    func finishSetup() {
+        diagnosticsDefaults.set(true, forKey: "hasCompletedSetup")
+        setupWindow?.close()
     }
 
     func quit() {
@@ -140,7 +183,8 @@ final class AppModel: ObservableObject {
     }
 
     private func configureKeyCapture(prompt: Bool) {
-        hasAccessibilityPermission = AXIsProcessTrusted()
+        let trusted = AXIsProcessTrusted()
+        if hasAccessibilityPermission != trusted { hasAccessibilityPermission = trusted }
         if !hasAccessibilityPermission, prompt {
             requestAccessibility()
         }
@@ -149,30 +193,21 @@ final class AppModel: ObservableObject {
         }
         diagnosticsDefaults.set(hasAccessibilityPermission, forKey: "runtimeAccessibilityTrusted")
         diagnosticsDefaults.set(keyTap.isRunning, forKey: "runtimeEventTapRunning")
-        diagnosticsDefaults.synchronize()
     }
 
     private func updateBrightnessListener() {
-        hasInputMonitoringPermission = BrightnessKeyListener.hasPermission
+        let granted = BrightnessKeyListener.hasPermission
+        if hasInputMonitoringPermission != granted { hasInputMonitoringPermission = granted }
         let needsRawKeys = brightness.isEnabled
             && brightness.isAvailable
             && !brightness.hasActiveBuiltInDisplay
-        if needsRawKeys,
-           !hasInputMonitoringPermission,
-           !diagnosticsDefaults.bool(forKey: "didRequestInputMonitoring") {
-            _ = BrightnessKeyListener.requestPermission()
-            diagnosticsDefaults.set(true, forKey: "didRequestInputMonitoring")
-            hasInputMonitoringPermission = BrightnessKeyListener.hasPermission
-        }
         diagnosticsDefaults.set(hasInputMonitoringPermission, forKey: "runtimeInputMonitoringGranted")
-        diagnosticsDefaults.synchronize()
         if needsRawKeys, hasInputMonitoringPermission {
             brightnessListener.start()
         } else {
             brightnessListener.stop()
         }
         diagnosticsDefaults.set(brightnessListener.isRunning, forKey: "runtimeBrightnessHIDRunning")
-        diagnosticsDefaults.synchronize()
     }
 
     private func handle(_ key: MediaKey, fine: Bool) {
@@ -181,7 +216,6 @@ final class AppModel: ObservableObject {
             diagnosticsDefaults.integer(forKey: "runtimeMediaKeyCount") + 1,
             forKey: "runtimeMediaKeyCount"
         )
-        diagnosticsDefaults.synchronize()
         let step = fine ? 1 : Level.defaultStep
         switch key {
         case .volumeUp:
@@ -195,12 +229,10 @@ final class AppModel: ObservableObject {
             showVolumeOSD()
         case .brightnessUp:
             lastBrightnessMediaEvent = ProcessInfo.processInfo.systemUptime
-            brightness.nudge(step)
-            showBrightnessOSD()
+            brightness.nudge(step) { [weak self] in self?.showBrightnessOSD() }
         case .brightnessDown:
             lastBrightnessMediaEvent = ProcessInfo.processInfo.systemUptime
-            brightness.nudge(-step)
-            showBrightnessOSD()
+            brightness.nudge(-step) { [weak self] in self?.showBrightnessOSD() }
         }
     }
 
@@ -214,15 +246,10 @@ final class AppModel: ObservableObject {
     }
 
     private func showBrightnessOSD() {
-        let displayID = brightness.targetDisplayID
-        let screen = NSScreen.screens.first { screen in
-            (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
-                == displayID
-        }
-        let name = screen?.localizedName ?? brightnessDeviceName
-        let percent = brightness.pendingPercent
-        DispatchQueue.main.async { [weak self] in
-            self?.osd.show(kind: .brightness, name: name, percent: percent, displayID: displayID)
+        guard brightness.isEnabled, brightness.isAvailable else { return }
+        for displayID in brightness.controlledDisplayIDs {
+            guard let display = brightness.displays.first(where: { $0.id == displayID }) else { continue }
+            osd.show(kind: .brightness, name: display.name, percent: display.percent, displayID: displayID)
         }
     }
 }

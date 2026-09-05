@@ -79,6 +79,79 @@ enum AudioHardware {
         return false
     }
 
+    private static func volumeProperties(_ device: AudioDevice) -> [AudioObjectPropertyAddress] {
+        let properties = [0, 1, 2].map {
+            address(kAudioDevicePropertyVolumeScalar, scope: kAudioDevicePropertyScopeOutput,
+                    element: AudioObjectPropertyElement($0))
+        }.filter { candidate in
+            var property = candidate
+            var settable = DarwinBoolean(false)
+            return AudioObjectHasProperty(device.id, &property)
+                && AudioObjectIsPropertySettable(device.id, &property, &settable) == noErr
+                && settable.boolValue
+        }
+        // A master control already affects every channel. Do not also write the channels.
+        if let master = properties.first(where: { $0.mElement == kAudioObjectPropertyElementMain }) {
+            return [master]
+        }
+        return properties
+    }
+
+    private static func scalar(_ device: AudioDevice, property: AudioObjectPropertyAddress) -> Float32? {
+        var property = property
+        var value: Float32 = 0
+        var size = UInt32(MemoryLayout<Float32>.size)
+        guard AudioObjectGetPropertyData(device.id, &property, 0, nil, &size, &value) == noErr,
+              value.isFinite else { return nil }
+        return min(1, max(0, value))
+    }
+
+    static func nativeLevel(_ device: AudioDevice) -> Level? {
+        let values = volumeProperties(device).compactMap { scalar(device, property: $0) }
+        guard let maximum = values.max() else { return nil }
+        var mute = address(kAudioDevicePropertyMute, scope: kAudioDevicePropertyScopeOutput)
+        var muted: UInt32 = 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        if AudioObjectHasProperty(device.id, &mute) {
+            _ = AudioObjectGetPropertyData(device.id, &mute, 0, nil, &size, &muted)
+        }
+        return Level(percent: Int((maximum * 100).rounded()), isMuted: muted != 0)
+    }
+
+    static func setNativeVolume(_ device: AudioDevice, percent: Int) {
+        let properties = volumeProperties(device)
+        let values = properties.compactMap { scalar(device, property: $0) }
+        guard values.count == properties.count, !values.isEmpty else { return }
+        let adjusted = nativeChannelVolumes(values, percent: percent)
+        var succeeded = true
+        for (candidate, newValue) in zip(properties, adjusted) {
+            var property = candidate
+            var value = newValue
+            if AudioObjectSetPropertyData(device.id, &property, 0, nil,
+                                          UInt32(MemoryLayout<Float32>.size), &value) != noErr {
+                succeeded = false
+            }
+        }
+        // Match the existing slider: moving it unmutes, after setting the new level.
+        if succeeded {
+            var mute = address(kAudioDevicePropertyMute, scope: kAudioDevicePropertyScopeOutput)
+            var settable = DarwinBoolean(false)
+            if AudioObjectHasProperty(device.id, &mute),
+               AudioObjectIsPropertySettable(device.id, &mute, &settable) == noErr, settable.boolValue {
+                var value: UInt32 = 0
+                _ = AudioObjectSetPropertyData(device.id, &mute, 0, nil,
+                                               UInt32(MemoryLayout<UInt32>.size), &value)
+            }
+        }
+    }
+
+    static func nativeChannelVolumes(_ values: [Float32], percent: Int) -> [Float32] {
+        let target = Float32(Level.clamp(percent)) / 100
+        let maximum = values.max() ?? 0
+        // Preserve the channel balance instead of resetting left/right on every drag.
+        return values.map { maximum > 0 ? min(1, max(0, $0 / maximum * target)) : target }
+    }
+
     static func describe(_ status: OSStatus) -> String {
         let raw = UInt32(bitPattern: status)
         let bytes = [

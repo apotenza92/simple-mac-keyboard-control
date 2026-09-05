@@ -12,6 +12,7 @@ public final class MediaKeyTap {
     private let handler: Handler
 
     public var shouldConsumeVolume: () -> Bool = { false }
+    public var shouldConsumeBrightness: () -> Bool = { false }
     public var shouldHandleBrightness: () -> Bool = { false }
 
     public init(handler: @escaping Handler) {
@@ -62,7 +63,7 @@ public final class MediaKeyTap {
            shouldHandleBrightness(),
            Self.shouldUseFunctionKeysForBrightness {
             handler(key, event.flags.contains(.maskShift))
-            return nil
+            return shouldConsumeBrightness() ? nil : Unmanaged.passUnretained(event)
         }
         guard type.rawValue == Self.systemDefined,
               let nsEvent = NSEvent(cgEvent: event),
@@ -75,8 +76,9 @@ public final class MediaKeyTap {
             if decoded.isKeyDown, shouldHandleBrightness() {
                 handler(decoded.key, event.flags.contains(.maskShift))
             }
-            // Preserve native adjustment of a built-in panel.
-            return Unmanaged.passUnretained(event)
+            // Keep Apple’s built-in adjustment/HUD; suppress its unavailable
+            // indicator when KeyControl owns brightness on external-only setups.
+            return shouldConsumeBrightness() ? nil : Unmanaged.passUnretained(event)
         }
 
         guard shouldConsumeVolume() else { return Unmanaged.passUnretained(event) }

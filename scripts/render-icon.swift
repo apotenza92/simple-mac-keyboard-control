@@ -2,6 +2,7 @@ import AppKit
 
 // Reproducible vector artwork rendered at each macOS icon resolution.
 // No external image assets, fonts, or graphics packages are needed.
+let isBeta = CommandLine.arguments.contains("--beta")
 let output = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
 try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
 
@@ -38,7 +39,7 @@ func render(pixels: Int, filename: String) throws {
     rounded(NSRect(x: 100, y: 106, width: 824, height: 824), radius: 184, fill: color(39, 43, 50))
     rounded(NSRect(x: 164, y: 290, width: 330, height: 420), radius: 68, fill: color(17, 20, 25))
     rounded(NSRect(x: 530, y: 290, width: 330, height: 420), radius: 68, fill: color(17, 20, 25))
-    rounded(NSRect(x: 164, y: 322, width: 330, height: 420), radius: 68, fill: color(244, 181, 68))
+    rounded(NSRect(x: 164, y: 322, width: 330, height: 420), radius: 68, fill: isBeta ? color(148, 158, 239) : color(244, 181, 68))
     rounded(NSRect(x: 530, y: 322, width: 330, height: 420), radius: 68, fill: color(242, 240, 235))
     symbol("sun.max.fill", rect: NSRect(x: 220, y: 423, width: 218, height: 218), tint: color(39, 43, 50))
     symbol("speaker.wave.2.fill", rect: NSRect(x: 584, y: 423, width: 222, height: 218), tint: color(39, 43, 50))

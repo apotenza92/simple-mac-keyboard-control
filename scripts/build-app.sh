@@ -7,6 +7,13 @@ source "${repo_dir}/scripts/xcode-env.sh"
 if [[ "${KEYCONTROL_RELEASE_BUILD:-0}" == "1" ]]; then
     display_name="Simple Mac Keyboard Control"
     bundle_identifier="com.apotenza.KeyControl"
+    if [[ "${KEYCONTROL_CHANNEL:-stable}" == "beta" ]]; then
+        display_name+=" Beta"
+        bundle_identifier+=".beta"
+    elif [[ "${KEYCONTROL_CHANNEL:-stable}" != "stable" ]]; then
+        echo "Release channel must be stable or beta." >&2
+        exit 1
+    fi
 else
     display_name="Simple Mac Keyboard Control Dev"
     bundle_identifier="com.apotenza.KeyControl.dev"
@@ -19,14 +26,38 @@ build_dir="$(swift build --package-path "${repo_dir}" -c release --show-bin-path
 rm -rf "${app_dir:?}"
 mkdir -p "${app_dir}/Contents/MacOS"
 mkdir -p "${app_dir}/Contents/Resources"
-swift "${repo_dir}/scripts/render-icon.swift" "${repo_dir}/build/AppIcon.iconset"
-iconutil -c icns "${repo_dir}/build/AppIcon.iconset" -o "${app_dir}/Contents/Resources/AppIcon.icns"
+python3 "${repo_dir}/scripts/generate-icon-assets.py"
+icon_name="AppIcon"
+if [[ "${KEYCONTROL_RELEASE_BUILD:-0}" == "1" && "${KEYCONTROL_CHANNEL:-stable}" == "beta" ]]; then
+    icon_name="AppIconBeta"
+fi
+xcrun actool "${repo_dir}/Resources/${icon_name}.icon" \
+    --compile "${app_dir}/Contents/Resources" \
+    --output-format human-readable-text --notices --warnings --errors \
+    --output-partial-info-plist "${repo_dir}/build/icon-info.plist" \
+    --app-icon "$icon_name" --include-all-app-icons --enable-on-demand-resources NO \
+    --development-region en --target-device mac --minimum-deployment-target 14.4 --platform macosx
+mkdir -p "${app_dir}/Contents/Frameworks"
+ditto "${repo_dir}/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "${app_dir}/Contents/Frameworks/Sparkle.framework"
 cp "${build_dir}/KeyControl" "${app_dir}/Contents/MacOS/KeyControl"
 cp "${repo_dir}/Resources/Info.plist" "${app_dir}/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleIconFile $icon_name" "${app_dir}/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :CFBundleIconName string $icon_name" "${app_dir}/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName ${display_name}" "${app_dir}/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleName ${display_name}" "${app_dir}/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier ${bundle_identifier}" "${app_dir}/Contents/Info.plist"
-printf 'APPL????' > "${app_dir}/Contents/PkgInfo"
+if [[ -n "${KEYCONTROL_VERSION:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${KEYCONTROL_VERSION}" "${app_dir}/Contents/Info.plist"
+fi
+if [[ -n "${KEYCONTROL_BUILD_NUMBER:-}" ]]; then
+    /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${KEYCONTROL_BUILD_NUMBER}" "${app_dir}/Contents/Info.plist"
+fi
+if [[ "${KEYCONTROL_RELEASE_BUILD:-0}" == "1" ]]; then
+    arch="$(uname -m)"
+    [[ "$arch" != "x86_64" ]] || arch=x64
+    /usr/libexec/PlistBuddy -c "Add :SUFeedURL string https://raw.githubusercontent.com/apotenza92/simple-mac-keyboard-control/main/appcasts/${KEYCONTROL_CHANNEL:-stable}-${arch}.xml" "${app_dir}/Contents/Info.plist"
+fi
+printf 'APPL????'   > "${app_dir}/Contents/PkgInfo"
 
 identity="-"
 available_identities="$(security find-identity -v -p codesigning 2>/dev/null || true)"
@@ -51,6 +82,12 @@ if [[ "${identity}" != "-" ]]; then
 else
     sign_args+=(--timestamp=none)
 fi
+framework="${app_dir}/Contents/Frameworks/Sparkle.framework"
+# Sign nested helpers inside out; preserve Sparkle helper entitlements.
+while IFS= read -r component; do
+    codesign --force --sign "$identity" --options runtime --timestamp --preserve-metadata=entitlements "$component"
+done < <(find "$framework/Versions/B" -depth \( -name "*.xpc" -o -name "*.app" -o -name Autoupdate \))
+codesign --force --sign "$identity" --options runtime --timestamp "$framework"
 codesign "${sign_args[@]}" "${app_dir}"
 
 echo "Built ${app_dir}"

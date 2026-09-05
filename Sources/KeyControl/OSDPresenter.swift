@@ -24,25 +24,43 @@ final class OSDPresenter {
         }
     }
 
-    private let panel: NSPanel
-    private var dismissal: DispatchWorkItem?
-    private let diagnostics = UserDefaults.standard
+    struct Content: Equatable {
+        let kind: Kind
+        let name: String
+        let percent: Int
+    }
 
-    init() {
-        panel = NSPanel(
+    final class Model: ObservableObject {
+        @Published var content: Content
+        init(_ content: Content) { self.content = content }
+    }
+
+    private var models: [CGDirectDisplayID: Model] = [:]
+    private var deadlines: [CGDirectDisplayID: TimeInterval] = [:]
+    private var dismissalTimer: Timer?
+    private var panels: [CGDirectDisplayID: NSPanel] = [:]
+    private var revisions: [CGDirectDisplayID: Int] = [:]
+    private let diagnostics = UserDefaults.standard
+    private var pendingDiagnostics: DispatchWorkItem?
+    private var latestDiagnostics: (content: Content, displayID: CGDirectDisplayID)?
+    private lazy var hudCount = diagnostics.integer(forKey: "runtimeHUDCount")
+
+    private func makePanel() -> NSPanel {
+        let panel = NSPanel(
             contentRect: NSRect(x: 0, y: 0, width: 292, height: 64),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: true
         )
         panel.backgroundColor = .clear
-        panel.title = "Simple Mac Keyboard Control HUD"
+        panel.title = "\(AppIdentity.name) HUD"
         panel.isOpaque = false
         panel.hasShadow = true
         panel.ignoresMouseEvents = true
         panel.level = .statusBar
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
         panel.isReleasedWhenClosed = false
+        return panel
     }
 
     func show(kind: Kind, name: String, percent: Int, displayID: CGDirectDisplayID? = nil) {
@@ -51,55 +69,98 @@ final class OSDPresenter {
     }
 
     private func showSwiftUI(kind: Kind, name: String, percent: Int, displayID: CGDirectDisplayID) {
-        dismissal?.cancel()
-        panel.contentView = NSHostingView(
-            rootView: OSDView(kind: kind, name: name, percent: percent)
-        )
+        guard let screen = NSScreen.screens.first(where: { screen in
+            (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == displayID
+        }) else { return }
+        for id in Array(panels.keys) where !NSScreen.screens.contains(where: {
+            ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value == id
+        }) {
+            deadlines.removeValue(forKey: id)
+            models.removeValue(forKey: id)
+            panels.removeValue(forKey: id)?.close()
+            revisions.removeValue(forKey: id)
+        }
+        revisions[displayID] = (revisions[displayID] ?? 0) + 1
+        let content = Content(kind: kind, name: name, percent: percent)
+        let panel: NSPanel
+        if let existing = panels[displayID], let model = models[displayID] {
+            panel = existing
+            if model.content != content { model.content = content }
+        } else {
+            panel = makePanel()
+            let model = Model(content)
+            models[displayID] = model
+            panel.contentView = NSHostingView(rootView: OSDView(model: model))
+            panels[displayID] = panel
+        }
 
-        let screen = NSScreen.screens.first { screen in
-            (screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value
-                == displayID
-        } ?? NSScreen.main ?? NSScreen.screens[0]
         let frame = screen.frame
         let menuBarHeight = max(0, frame.maxY - screen.visibleFrame.maxY)
-        panel.setFrameOrigin(NSPoint(
-            x: frame.maxX - panel.frame.width - 16,
-            y: frame.maxY - menuBarHeight - panel.frame.height - 8
-        ))
+        let origin = NSPoint(x: frame.maxX - panel.frame.width - 16,
+                             y: frame.maxY - menuBarHeight - panel.frame.height - 8)
+        if panel.frame.origin != origin { panel.setFrameOrigin(origin) }
+        if panel.alphaValue != 1 { panel.alphaValue = 1 }
+        if !panel.isVisible { panel.orderFrontRegardless() }
+        hudCount += 1
+        latestDiagnostics = (content, displayID)
+        scheduleDiagnostics()
 
-        panel.alphaValue = 1
-        panel.orderFrontRegardless()
-        diagnostics.set(kind.rawValue, forKey: "runtimeHUDKind")
-        diagnostics.set(name, forKey: "runtimeHUDName")
-        diagnostics.set(percent, forKey: "runtimeHUDPercent")
-        diagnostics.set(displayID, forKey: "runtimeHUDDisplayID")
-        diagnostics.set(true, forKey: "runtimeHUDVisible")
-        diagnostics.set(diagnostics.integer(forKey: "runtimeHUDCount") + 1, forKey: "runtimeHUDCount")
-        diagnostics.synchronize()
+        deadlines[displayID] = ProcessInfo.processInfo.systemUptime + 1.15
+        if dismissalTimer == nil {
+            let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
+                MainActor.assumeIsolated { self?.dismissExpiredPanels() }
+            }
+            dismissalTimer = timer
+            RunLoop.main.add(timer, forMode: .common)
+        }
+    }
 
+    private func scheduleDiagnostics() {
+        guard pendingDiagnostics == nil else { return }
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
+            self.pendingDiagnostics = nil
+            guard let latest = self.latestDiagnostics else { return }
+            self.diagnostics.set(latest.content.kind.rawValue, forKey: "runtimeHUDKind")
+            self.diagnostics.set(latest.content.name, forKey: "runtimeHUDName")
+            self.diagnostics.set(latest.content.percent, forKey: "runtimeHUDPercent")
+            self.diagnostics.set(latest.displayID, forKey: "runtimeHUDDisplayID")
+            self.diagnostics.set(self.panels.values.contains { $0.isVisible }, forKey: "runtimeHUDVisible")
+            self.diagnostics.set(self.hudCount, forKey: "runtimeHUDCount")
+        }
+        pendingDiagnostics = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.05, execute: work)
+    }
+
+    private func dismissExpiredPanels() {
+        let now = ProcessInfo.processInfo.systemUptime
+        for (id, deadline) in deadlines where deadline <= now {
+            deadlines.removeValue(forKey: id)
+            guard let panel = panels[id] else { continue }
+            let revision = revisions[id]
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = 0.22
                 context.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
-                self.panel.animator().alphaValue = 0
+                panel.animator().alphaValue = 0
             } completionHandler: { [weak self] in
                 Task { @MainActor in
-                    self?.panel.orderOut(nil)
-                    self?.diagnostics.set(false, forKey: "runtimeHUDVisible")
-                    self?.diagnostics.synchronize()
+                    guard let self, self.revisions[id] == revision else { return }
+                    panel.orderOut(nil)
+                    self.diagnostics.set(self.panels.values.contains { $0.isVisible }, forKey: "runtimeHUDVisible")
                 }
             }
         }
-        dismissal = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.15, execute: work)
+        if deadlines.isEmpty { dismissalTimer?.invalidate(); dismissalTimer = nil }
     }
+
 }
 
 private struct OSDView: View {
-    let kind: OSDPresenter.Kind
-    let name: String
-    let percent: Int
+    @ObservedObject private var appearance = ControlAppearance.shared
+    @ObservedObject var model: OSDPresenter.Model
+    private var kind: OSDPresenter.Kind { model.content.kind }
+    private var name: String { model.content.name }
+    private var percent: Int { model.content.percent }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -112,7 +173,8 @@ private struct OSDView: View {
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
         .frame(width: 292, height: 64, alignment: .topLeading)
-        .osdGlass()
+        .hudGlass()
+        .environment(\.colorScheme, appearance.colorScheme)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(name), \(percent) percent")
     }
@@ -139,7 +201,7 @@ private struct OSDLevel: View {
                 .frame(height: 4)
                 HStack(spacing: 0) {
                     ForEach(0..<16, id: \.self) { index in
-                        Circle().fill(.white.opacity(0.12)).frame(width: 2, height: 2)
+                        Circle().fill(.white.opacity(0.24)).frame(width: 2, height: 2)
                         if index != 15 { Spacer() }
                     }
                 }
@@ -150,24 +212,10 @@ private struct OSDLevel: View {
                 .frame(width: 14)
         }
         .frame(height: 13)
+        .foregroundStyle(.white.opacity(0.92))
     }
 
     private var displayedFraction: CGFloat {
         kind == .muted ? 0 : CGFloat(percent) / 100
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func osdGlass() -> some View {
-        if #available(macOS 26.0, *) {
-            glassEffect(.regular, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        } else {
-            background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(.white.opacity(0.18), lineWidth: 0.5)
-                }
-        }
     }
 }

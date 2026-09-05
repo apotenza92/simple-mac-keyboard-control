@@ -8,6 +8,9 @@ let package = Package(
     products: [
         .executable(name: "KeyControl", targets: ["KeyControl"]),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", exact: "2.9.6"),
+    ],
     targets: [
         .target(
             name: "KeyControlCore",
@@ -20,10 +23,11 @@ let package = Package(
         ),
         .executableTarget(
             name: "KeyControl",
-            dependencies: ["KeyControlCore"],
+            dependencies: ["KeyControlCore", .product(name: "Sparkle", package: "Sparkle")],
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("ServiceManagement"),
+                .unsafeFlags(["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"]),
             ]
         ),
         .testTarget(name: "KeyControlCoreTests", dependencies: ["KeyControlCore"]),

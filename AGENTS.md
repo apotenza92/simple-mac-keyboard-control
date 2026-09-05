@@ -5,15 +5,16 @@
 Keep KeyControl a native menu-bar utility for exactly two jobs:
 
 - Route the volume up, volume down, and mute keys through software gain when the current macOS output has no writable volume control.
-- Route brightness up and down to external DDC/CI displays.
+- Route brightness up and down to external DDC/CI displays, with software dimming as a fallback when DDC is unavailable.
 
-Treat equalizers, per-app audio, device routing, custom shortcuts, display contrast, and software dimming as out of scope. Prefer a focused fix over a new setting.
+Treat equalizers, per-app audio, device routing, custom shortcuts, and display contrast as out of scope. Prefer a focused fix over a new setting.
 
 ## Safety invariants
 
 - The audio path is fail-open: a stopped or failed app must restore the ordinary direct Core Audio path.
 - The real-time audio callback allocates no memory, performs no file or network IO, and takes no locks.
 - Native-volume outputs keep macOS behavior; KeyControl intercepts volume keys only while software gain is active.
+- Software dimming must leave built-in displays alone, keep a visible minimum, and disappear when the app stops or fails.
 - DDC work stays serialized and off the main thread. A missing private API or unsupported monitor disables brightness without affecting volume.
 
 ## Verification

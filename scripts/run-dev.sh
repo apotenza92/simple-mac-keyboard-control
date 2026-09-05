@@ -11,7 +11,7 @@ pkill -f "^${installed_app}/Contents/MacOS/KeyControl$" 2>/dev/null || true
 mkdir -p "${install_dir}"
 rm -rf "${installed_app:?}"
 /usr/bin/ditto "${source_app}" "${installed_app}"
-open -na "${installed_app}"
+open -na "${installed_app}" --args "$@"
 
 sleep 2
 echo "Running stable development app: ${installed_app}"

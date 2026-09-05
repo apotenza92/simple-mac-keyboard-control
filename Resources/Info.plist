@@ -30,6 +30,14 @@
     <string>Simple Mac Keyboard Control routes system audio only to apply volume and mute before sending it to your selected output. Audio is never recorded or stored.</string>
     <key>NSInputMonitoringUsageDescription</key>
     <string>Simple Mac Keyboard Control listens only for brightness keys when macOS does not expose them for an external monitor.</string>
+    <key>SUPublicEDKey</key>
+    <string>5nc73sCXPAQbUUwDcPbeHs72ZF9QM917RM4rNATw+8M=</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+    <key>SUAutomaticallyUpdate</key>
+    <false/>
+    <key>SUVerifyUpdateBeforeExtraction</key>
+    <true/>
     <key>NSPrincipalClass</key>
     <string>NSApplication</string>
 </dict>

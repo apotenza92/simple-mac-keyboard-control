@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Download Simple Mac Keyboard Control. Volume, mute, and external-display brightness from your Mac keyboard. Choose stable or beta for Apple silicon or Intel.">
+<meta name="color-scheme" content="light dark">
+<title>Download Simple Mac Keyboard Control</title>
+<link rel="icon" href="assets/icon.png"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main class="container">
+<img class="icon" id="app-icon" src="assets/icon-stable-light.svg" alt="Simple Mac Keyboard Control icon" width="96" height="96">
+<h1 id="app-title">Simple Mac Keyboard Control</h1>
+<p class="intro">A free, open source macOS app for volume, mute, and brightness keys on external audio interfaces and displays.</p>
+<p class="intro">Software volume for audio outputs macOS cannot turn down. External monitor brightness over DDC/CI, with software dimming as a fallback.</p>
+<div class="selection-flow">
+<fieldset><legend class="sr-only">Release channel</legend><div class="segmented"><button type="button" data-channel="stable" aria-pressed="true">Stable</button><button type="button" data-channel="beta" aria-pressed="false">Beta</button></div></fieldset>
+<fieldset><legend class="sr-only">Your Mac</legend><div class="segmented"><button type="button" data-arch="arm64" aria-pressed="true">Apple silicon</button><button type="button" data-arch="x64" aria-pressed="false">Intel</button></div></fieldset>
+<a id="download-link" class="download-btn" href="https://github.com/apotenza92/simple-mac-keyboard-control/releases">Browse releases ↗</a>
+</div>
+<p id="release-status" class="release-status" role="status">Checking available releases…</p>
+<a id="release-notes" hidden>Release notes ↗</a>
+<p id="channel-description" class="beta-notice" hidden>Preview builds and newer stable releases. Beta installs separately; run only one channel at a time.</p>
+<p class="meta-note">macOS 14.4 or later.<br><span id="compatibility">Hardware DDC brightness requires Apple silicon and a compatible monitor connection.</span></p>
+<div class="github-row"><a class="github-link" href="https://github.com/apotenza92/simple-mac-keyboard-control"><svg viewBox="0 0 24 24" width="21" height="21" aria-hidden="true" fill="currentColor"><path d="M12 .75a11.25 11.25 0 0 0-3.558 21.923c.563.104.77-.244.77-.542 0-.267-.01-.975-.016-1.914-3.13.68-3.791-1.508-3.791-1.508-.512-1.3-1.25-1.647-1.25-1.647-1.022-.7.078-.685.078-.685 1.13.08 1.725 1.16 1.725 1.16 1.004 1.722 2.633 1.225 3.274.937.102-.728.393-1.225.715-1.507-2.498-.285-5.124-1.25-5.124-5.566 0-1.23.44-2.236 1.16-3.024-.116-.285-.503-1.43.11-2.981 0 0 .945-.303 3.095 1.155A10.8 10.8 0 0 1 12 6.17c.956.004 1.92.13 2.82.38 2.149-1.458 3.092-1.155 3.092-1.155.615 1.55.228 2.696.112 2.98.722.789 1.159 1.795 1.159 3.025 0 4.327-2.63 5.278-5.136 5.557.404.35.764 1.043.764 2.1 0 1.517-.014 2.742-.014 3.115 0 .3.203.65.774.54A11.25 11.25 0 0 0 12 .75Z"/></svg><span>View on GitHub</span><span aria-hidden="true">↗</span></a></div>
+<p class="support"><a href="https://buymeacoffee.com/apotenza">☕ Buy me a coffee</a></p>
+<p class="other-apps">Also by Alex: <a href="https://apotenza92.github.io/macsimize/">Macsimize</a> · <a href="https://apotenza92.github.io/dockmint/">Dockmint</a></p>
+<noscript><p>Enable JavaScript to choose a channel, or browse releases on GitHub.</p></noscript>
+</main>
+<script type="module" src="downloads.js"></script>
+</body></html>

@@ -3,3 +3,5 @@
 /build/
 /*.xcworkspace/
 xcuserdata/
+
+__pycache__/
