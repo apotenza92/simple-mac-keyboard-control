@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
+  <channel>
+    <title>Simple Mac Keyboard Control Beta</title>
+    <item>
+      <title>v0.1.0</title>
+      <sparkle:version>100090000</sparkle:version>
+      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
+      <description sparkle:format="plain-text"># Simple Mac Keyboard Control 0.1.0
+
+- Use volume and mute keys with fixed-volume audio interfaces and USB DACs.
+- Adjust external-display brightness using DDC/CI, with software dimming when hardware control is unavailable.
+- Native menu-bar controls, linked display brightness, permission guidance, and launch at login.
+- Stable and beta app identities, light and dark icons, and signed Sparkle updates.
+
+Requires macOS 14.4 or later. Hardware DDC support currently requires Apple silicon; software dimming is available on supported external displays.
+</description>
+      <enclosure url="https://github.com/apotenza92/simple-mac-keyboard-control/releases/download/v0.1.0/Simple-Mac-Keyboard-Control-Beta-v0.1.0-macos-arm64.zip" length="3184474" type="application/octet-stream" sparkle:edSignature="+rQp/VFYfBXgU1JzZj13uddkWT67n8oaZXgpb9PYskUpt9dQFuMQmTd8EVv24IgenrPv8+rA56v88040ujqYAQ==" />
+    </item>
+  </channel>
+</rss>
