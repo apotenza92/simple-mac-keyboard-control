@@ -159,3 +159,26 @@ The dropdown uses System Menu by default; the HUD independently uses Regular gla
 - Live rapid-repeat probe: eight of eight native level changes published during 80 controller nudges, zero divergent linked snapshots, matching final levels. Live single-change probe: linked brightness 11.3 ms and native audio 19.1 ms from hardware change to model publication. These are individual controller measurements, not rendered-frame benchmarks or statistically significant comparisons.
 - HUD probe: 100 updates retained one hosting view and dismissed after the burst. All 18 tests, release build, signing, and plist checks passed. Probes restored original native hardware values.
 - Remaining limits: integer percentage steps, native brightness readback timing, independent display refresh rates, and physical DDC latency. The serial DDC transport and real-time audio callback were left unchanged. Working-DDC verification and visible menu smoothness still require physical testing; the attached dock uses software dimming. The existing e2e smoke script requires a fixed-volume audio output, so it was not run on native AirPods.
+
+## Release-candidate runtime verification — 2026-09-05
+
+Candidate source: `96e90ad` (0.1.0). Installed with `scripts/run-dev.sh` using the
+unchanged development identity and path.
+
+- Connected hardware: Scarlett 2i2 USB default output; AW3425DWM external display.
+  Runtime reported active software gain, trusted Accessibility, active media-key
+  tap, granted Input Monitoring, and hardware DDC mode.
+- `scripts/e2e-smoke.sh` passed all real media-key and HUD assertions: volume
+  52 → 46 → 52, mute/unmute, hardware brightness 100 → 94 → 100. Original settings
+  were restored. Captures remain in ignored `build/e2e-huds/`.
+- Switched to MacBook speakers, sent a native volume key, and verified native
+  hardware volume and menu readback agreed. Saved software volume remained 52%.
+  Restored the speakers' original volume/mute, selected the Scarlett again, and
+  verified the active software pipeline recovered at 52%.
+- Normal app quit wrote the stopped pipeline state and retained Scarlett as the
+  default output. Relaunch restored active software gain at 52%.
+- These automated checks establish routing/controller/HUD state and recovery.
+  They do not establish audible quality, pops/stalls, physical brightness
+  appearance, cable disconnect/reconnect, or sleep/wake behavior. Those manual
+  checks remain unconfirmed; do not set the release hardware-verification gate
+  from this automated evidence alone.
