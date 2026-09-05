@@ -1,0 +1,34 @@
+{
+  "source_commit": "ad3015af8464d8ae59c4e268733b5b13c91404a9",
+  "workflow_run": "https://github.com/apotenza92/simple-mac-keyboard-control/actions/runs/33957422443",
+  "updater_results": [
+    {
+      "status": "passed",
+      "previous_build": "100090000",
+      "candidate_build": "100190000",
+      "channel": "beta",
+      "arch": "arm64"
+    },
+    {
+      "status": "passed",
+      "previous_build": "100090000",
+      "candidate_build": "100190000",
+      "channel": "stable",
+      "arch": "arm64"
+    },
+    {
+      "status": "passed",
+      "previous_build": "100090000",
+      "candidate_build": "100190000",
+      "channel": "beta",
+      "arch": "x64"
+    },
+    {
+      "status": "passed",
+      "previous_build": "100090000",
+      "candidate_build": "100190000",
+      "channel": "stable",
+      "arch": "x64"
+    }
+  ]
+}

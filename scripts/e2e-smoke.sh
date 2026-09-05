@@ -5,22 +5,31 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 domain="com.apotenza.KeyControl.dev"
 app="${HOME}/Applications/KeyControl Dev.app"
 sender="${repo_dir}/scripts/send-media-key.swift"
-brightness_changed=0
-volume_changed=0
-mute_changed=0
 capture_dir="${repo_dir}/build/e2e-huds"
 
-cleanup() {
-    if [[ "${brightness_changed}" == "1" ]]; then
-        "${sender}" f15 >/dev/null 2>&1 || true
-        sleep 2
-    fi
-    if [[ "${mute_changed}" == "1" ]]; then
-        "${sender}" mute >/dev/null 2>&1 || true
+restore_step() {
+    local key="$1" before="$2" up="$3" down="$4" current
+    current="$(read_default "$key")"
+    [[ "$before" =~ ^[0-9]+$ && "$current" =~ ^[0-9]+$ ]] || return 0
+    if (( current == before - 6 )); then
+        "$sender" "$up" >/dev/null 2>&1 || true
         sleep 1
+    elif (( current == before + 6 )); then
+        "$sender" "$down" >/dev/null 2>&1 || true
+        sleep 1
+    elif (( current != before )); then
+        echo "Restoration needs attention: $key changed unexpectedly ($before -> $current)." >&2
     fi
-    if [[ "${volume_changed}" == "1" ]]; then
-        "${sender}" volume-up >/dev/null 2>&1 || true
+}
+
+cleanup() {
+    # Read actual state, including when a key worked but a later HUD assertion failed.
+    restore_step brightnessPercent "${before_brightness:-}" f15 f14
+    restore_step volumePercent "${before_volume:-}" volume-up volume-down
+    local current_muted
+    current_muted="$(read_default volumeMuted)"
+    if [[ "${before_muted:-}" =~ ^[01]$ && "$current_muted" =~ ^[01]$ && "$current_muted" != "$before_muted" ]]; then
+        "$sender" mute >/dev/null 2>&1 || true
         sleep 1
     fi
 }
@@ -98,9 +107,12 @@ before_muted="$(read_default volumeMuted)"
 if [[ -z "${before_volume}" ]]; then before_volume=50; fi
 if [[ -z "${before_muted}" ]]; then before_muted=0; fi
 
-expected_volume=$((before_volume > 5 ? before_volume - 6 : 0))
+if (( before_volume < 6 )) || [[ "$before_muted" != "0" ]]; then
+    echo "Start this smoke test unmuted with volume at least 6%; no test keys were sent." >&2
+    exit 1
+fi
+expected_volume=$((before_volume - 6))
 send_and_assert_hud volume-down volume "${expected_volume}" "${audio_device}" volume-down
-volume_changed=1
 sleep 1
 after_volume="$(read_default volumePercent)"
 after_down_muted="$(read_default volumeMuted)"
@@ -112,7 +124,6 @@ fi
 echo "PASS: volume-down ${before_volume}% -> ${after_volume}%"
 
 send_and_assert_hud volume-up volume "${before_volume}" "${audio_device}" volume-up
-volume_changed=0
 sleep 1
 after_volume_up="$(read_default volumePercent)"
 if [[ "${after_volume_up}" != "${before_volume}" ]]; then
@@ -122,7 +133,6 @@ fi
 echo "PASS: volume-up ${after_volume}% -> ${after_volume_up}%"
 
 send_and_assert_hud mute muted "${before_volume}" "${audio_device}" mute
-mute_changed=1
 sleep 1
 after_muted="$(read_default volumeMuted)"
 if [[ "${after_muted}" != "1" ]]; then
@@ -132,7 +142,6 @@ fi
 echo "PASS: mute toggled 0 -> ${after_muted}"
 
 send_and_assert_hud mute volume "${before_volume}" "${audio_device}" unmute
-mute_changed=0
 sleep 1
 after_unmuted="$(read_default volumeMuted)"
 if [[ "${after_unmuted}" != "0" ]]; then
@@ -149,9 +158,12 @@ fi
 if [[ "$(read_default runtimeBrightnessAvailable)" == "1" ]]; then
     before_brightness="$(read_default brightnessPercent)"
     if [[ -z "${before_brightness}" ]]; then before_brightness=50; fi
-    expected_brightness=$((before_brightness > 5 ? before_brightness - 6 : 0))
+    if (( before_brightness < 6 )); then
+        echo "Brightness smoke requires a starting level of at least 6%; no brightness keys were sent." >&2
+        exit 1
+    fi
+    expected_brightness=$((before_brightness - 6))
     send_and_assert_hud f14 brightness "${expected_brightness}" "*" brightness-down
-    brightness_changed=1
     sleep 2
     after_brightness="$(read_default brightnessPercent)"
     if [[ "${after_brightness}" != "${expected_brightness}" ]]; then
@@ -161,7 +173,6 @@ if [[ "$(read_default runtimeBrightnessAvailable)" == "1" ]]; then
     echo "PASS: brightness-down ${before_brightness}% -> ${after_brightness}%"
     send_and_assert_hud f15 brightness "${before_brightness}" "*" brightness-up
     sleep 2
-    brightness_changed=0
     if [[ "$(read_default brightnessPercent)" != "${before_brightness}" ]]; then
         echo "FAIL: brightness-up did not restore level" >&2
         exit 1

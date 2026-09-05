@@ -227,3 +227,16 @@ unchanged development identity and path.
   and relaunch from the previous public version, except a retained newer beta.
 - Listening quality and physical sleep/cable recovery remain human observations;
   the automated evidence does not assert them.
+
+### Actual updater installation — 0.1.0 to 0.1.1
+
+All four native gates passed: stable/beta on ARM/Intel. Each copied the previous
+signed release, installed the signed 0.1.1 archive through Sparkle, observed the
+new build's relaunch marker, and verified the installed bundle version/identity
+and code signature. [Recorded results](ReleaseEvidence/v0.1.1.json) link to the
+successful source workflow. This replaces the need to defer the first actual
+update test to a future session.
+
+The smoke cleanup regression also passes: a key is applied, HUD capture fails,
+and cleanup restores the original volume. A live Scarlett/DDC key/HUD and
+quit/relaunch smoke passed after that change.

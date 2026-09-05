@@ -6,7 +6,7 @@
 
 [Choose stable or beta](https://apotenza92.github.io/simple-mac-keyboard-control/) · [Releases](https://github.com/apotenza92/simple-mac-keyboard-control/releases)
 
-**Version 0.1.0 is available** for Apple silicon and Intel, in stable and beta channels.
+**Version 0.1.1 is available** for Apple silicon and Intel, in stable and beta channels.
 
 A free, open source Mac utility from the maker of [Macsimize](https://apotenza92.github.io/macsimize/) and [Dockmint](https://apotenza92.github.io/dockmint/).
 
