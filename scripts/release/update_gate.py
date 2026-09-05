@@ -22,6 +22,10 @@ def execute(*args):
     return subprocess.check_output(args,stderr=subprocess.STDOUT)
 
 
+def retains_newer_beta(previous_build, meta):
+    return meta['channel']=='beta' and not meta['prerelease'] and int(previous_build)>int(meta['build'])
+
+
 def gate(tag,channel,arch,assets,feeds,output):
     meta=package(tag,channel,arch)
     url=f'https://raw.githubusercontent.com/{REPOSITORY}/main/appcasts/{channel}-{arch}.xml'
@@ -48,6 +52,9 @@ def gate(tag,channel,arch,assets,feeds,output):
         details=execute('codesign','-dvvv',str(app)).decode()
         if 'TeamIdentifier=27JL2VERNC' not in details or info['CFBundleIdentifier']!=meta['bundle_id']:
             raise ValueError('Previous app identity mismatch')
+        if retains_newer_beta(info['CFBundleVersion'],meta):
+            output.write_text(json.dumps({'status':'retained-newer-beta','previous_build':info['CFBundleVersion'],'candidate_build':meta['build'],'channel':channel,'arch':arch})+'\n')
+            return
         if int(info['CFBundleVersion'])>=int(meta['build']): raise ValueError('Candidate must advance the previous build')
         server_root=root/'server';server_root.mkdir()
         shutil.copyfile(assets/meta['asset'],server_root/meta['asset'])
