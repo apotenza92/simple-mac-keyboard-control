@@ -1,0 +1,14 @@
+{
+  "Resources/AppIcon.icon/Assets/artwork-dark.svg": "db23a72ea0985a8c00b4bd2827570c0da3a44cab6de9a1ed1858d00d6258190c",
+  "Resources/AppIcon.icon/Assets/artwork.svg": "1958786d2b9bf258b9f26173bad4ee373ebf41e17e0ceb9fe9404875ed8e569e",
+  "Resources/AppIcon.icon/icon.json": "716326ecd00f0b5bd312443d346b9338c9fe8a0bb548c5d59bb2a92f5257234d",
+  "Resources/AppIconBeta.icon/Assets/artwork-dark.svg": "c8348136ced08dc70bf0e7b77ba73de2f302dcacaeadba6faf323194688c8bff",
+  "Resources/AppIconBeta.icon/Assets/artwork.svg": "3afb3f61697244ddfaa606217c8fc6cd21631d7f4fba89ae6ad42f50c675e4d5",
+  "Resources/AppIconBeta.icon/icon.json": "716326ecd00f0b5bd312443d346b9338c9fe8a0bb548c5d59bb2a92f5257234d",
+  "Resources/CompiledIcons/AppIcon/AppIcon.icns": "418732ee8c74be58bde4ddc9b1f3ec4963ef23f31859db679f99454a4144dd2f",
+  "Resources/CompiledIcons/AppIcon/Assets.car": "023dfb232dc6d1fef9345475b37ac4327ea122a593564879efc6531446acde56",
+  "Resources/CompiledIcons/AppIcon/info.plist": "2cb2dbb43d7fd36a46a161d0b13b68ead7aedc009160de705366c08f2d17965c",
+  "Resources/CompiledIcons/AppIconBeta/AppIconBeta.icns": "704c4653d5b763d88ee028101bb61f303726457082f500cae414dee324ffb1af",
+  "Resources/CompiledIcons/AppIconBeta/Assets.car": "8c45b61a0f449c55f71dee3c6158d3249a8b8927d773c3432f82b4145c1c9e88",
+  "Resources/CompiledIcons/AppIconBeta/info.plist": "e99d977ff7b2fe487d41f46726818e0824462aafd67408c8d485bf6817e8cdde"
+}

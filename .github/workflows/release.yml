@@ -210,7 +210,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           test "$(gh release view "$RELEASE_TAG" --json isDraft --jq .isDraft)" = false
-          for file in publication-output/appcasts/*.xml; do
+          for file in appcasts/*.xml; do
             curl --fail --location --retry 5 "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/$(git rev-parse HEAD)/appcasts/$(basename "$file")" -o /tmp/feed.xml
             cmp "$file" /tmp/feed.xml
           done

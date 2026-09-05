@@ -19,7 +19,7 @@ ET.register_namespace('sparkle', NS)
 
 def prepare(tag, assets, output, private_key):
     meta = parse_tag(tag)
-    key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(private_key, validate=True))
+    key = Ed25519PrivateKey.from_private_bytes(base64.b64decode(private_key.strip(), validate=True))
     public = plistlib.loads(Path('Resources/Info.plist').read_bytes())['SUPublicEDKey']
     if key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw) != base64.b64decode(public):
         raise ValueError('Signing key does not match the bundled public key')

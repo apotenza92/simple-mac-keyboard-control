@@ -35,7 +35,9 @@ class PublicationTests(unittest.TestCase):
                         prepare(tag,Path('assets'),Path('out'),private)
                     self.assertEqual(len(list(Path('out/appcasts').glob('*.xml'))),expected)
                     Path('installed').mkdir(); install(Path('out/appcasts'),Path('installed'))
-                    with self.assertRaises(ValueError): install(Path('out/appcasts'),Path('installed'))
+                    before={p.name:p.read_bytes() for p in Path('installed').glob('*.xml')}
+                    install(Path('out/appcasts'),Path('installed'))
+                    self.assertEqual(before,{p.name:p.read_bytes() for p in Path('installed').glob('*.xml')})
                     wrong=Ed25519PrivateKey.generate().private_bytes(Encoding.Raw,PrivateFormat.Raw,NoEncryption())
                     with self.assertRaises(ValueError): prepare(tag,Path('assets'),Path('wrong'),base64.b64encode(wrong).decode())
                 finally: os.chdir(previous)

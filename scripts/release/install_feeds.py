@@ -15,11 +15,15 @@ def version(path):
 
 def install(source, destination):
     paths = list(source.glob('*.xml'))
+    advancing = []
     for path in paths:
         target = destination / path.name
         if target.exists() and version(target) >= version(path):
-            raise ValueError('Refusing to downgrade or replace existing feed: ' + path.name)
-    for path in paths: shutil.copyfile(path, destination / path.name)
+            if version(target) == version(path) and target.read_bytes() != path.read_bytes():
+                raise ValueError('Refusing to replace an existing build: ' + path.name)
+            continue
+        advancing.append(path)
+    for path in advancing: shutil.copyfile(path, destination / path.name)
 
 if __name__ == '__main__':
     install(Path(sys.argv[1]), Path(sys.argv[2]))

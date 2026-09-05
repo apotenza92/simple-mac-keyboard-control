@@ -31,12 +31,9 @@ icon_name="AppIcon"
 if [[ "${KEYCONTROL_RELEASE_BUILD:-0}" == "1" && "${KEYCONTROL_CHANNEL:-stable}" == "beta" ]]; then
     icon_name="AppIconBeta"
 fi
-xcrun actool "${repo_dir}/Resources/${icon_name}.icon" \
-    --compile "${app_dir}/Contents/Resources" \
-    --output-format human-readable-text --notices --warnings --errors \
-    --output-partial-info-plist "${repo_dir}/build/icon-info.plist" \
-    --app-icon "$icon_name" --include-all-app-icons --enable-on-demand-resources NO \
-    --development-region en --target-device mac --minimum-deployment-target 14.4 --platform macosx
+python3 "${repo_dir}/scripts/verify-compiled-icons.py"
+cp "${repo_dir}/Resources/CompiledIcons/${icon_name}/Assets.car" "${app_dir}/Contents/Resources/"
+cp "${repo_dir}/Resources/CompiledIcons/${icon_name}/${icon_name}.icns" "${app_dir}/Contents/Resources/"
 mkdir -p "${app_dir}/Contents/Frameworks"
 ditto "${repo_dir}/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "${app_dir}/Contents/Frameworks/Sparkle.framework"
 cp "${build_dir}/KeyControl" "${app_dir}/Contents/MacOS/KeyControl"
