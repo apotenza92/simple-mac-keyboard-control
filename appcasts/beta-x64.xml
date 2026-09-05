@@ -3,20 +3,18 @@
   <channel>
     <title>Simple Mac Keyboard Control Beta</title>
     <item>
-      <title>v0.1.0</title>
-      <sparkle:version>100090000</sparkle:version>
-      <sparkle:shortVersionString>0.1.0</sparkle:shortVersionString>
+      <title>v0.1.1</title>
+      <sparkle:version>100190000</sparkle:version>
+      <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
-      <description sparkle:format="plain-text"># Simple Mac Keyboard Control 0.1.0
+      <description sparkle:format="plain-text"># Simple Mac Keyboard Control 0.1.1
 
-- Use volume and mute keys with fixed-volume audio interfaces and USB DACs.
-- Adjust external-display brightness using DDC/CI, with software dimming when hardware control is unavailable.
-- Native menu-bar controls, linked display brightness, permission guidance, and launch at login.
-- Stable and beta app identities, light and dark icons, and signed Sparkle updates.
+- Correct Homebrew cask version interpolation while retaining exact archive checksums.
+- Validate real Sparkle installation and relaunch from the 0.1.0 baseline on both architectures and channels.
 
-Requires macOS 14.4 or later. Hardware DDC support currently requires Apple silicon; software dimming is available on supported external displays.
+App controls and hardware behavior are unchanged from 0.1.0. Requires macOS 14.4 or later.
 </description>
-      <enclosure url="https://github.com/apotenza92/simple-mac-keyboard-control/releases/download/v0.1.0/Simple-Mac-Keyboard-Control-Beta-v0.1.0-macos-x64.zip" length="3194841" type="application/octet-stream" sparkle:edSignature="t2e6NdjFhYDEjg1NQ3pomyCM1osYByNKetjsnP5e55cB3jgiQrwTDlm1kMbDL7ZbcHY5xXgInnbDfUxrLy1zBA==" />
+      <enclosure url="https://github.com/apotenza92/simple-mac-keyboard-control/releases/download/v0.1.1/Simple-Mac-Keyboard-Control-Beta-v0.1.1-macos-x64.zip" length="3194839" type="application/octet-stream" sparkle:edSignature="Un7FUBzz4sperfpRI4VYisWzZtda1ApdvZA1pgSOSXURMKuO6IQQteZyC7roNi0qH0HKy2viVk+vmzf7PRP1AQ==" />
     </item>
   </channel>
 </rss>
