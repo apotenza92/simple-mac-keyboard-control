@@ -7,7 +7,7 @@ install_dir="${HOME}/Applications"
 installed_app="${install_dir}/KeyControl Dev.app"
 
 "${repo_dir}/scripts/build-app.sh"
-pkill -f "^${installed_app}/Contents/MacOS/KeyControl$" 2>/dev/null || true
+pkill -f "^${installed_app}/Contents/MacOS/KeyControl( |$)" 2>/dev/null || true
 mkdir -p "${install_dir}"
 rm -rf "${installed_app:?}"
 /usr/bin/ditto "${source_app}" "${installed_app}"

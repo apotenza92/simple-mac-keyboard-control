@@ -31,7 +31,7 @@ supported releases use the same layout with an ultra-thin material.
 
 ## Stable and beta
 
-Stable is for everyday use. Beta receives preview builds and newer stable releases. It has a separate purple icon, app name, preferences, and permission identity. Both can be installed; quit one before running the other. Downloads are architecture-specific. Release builds use Sparkle for automatic update checks and offer **Check for Updates…** in the menu. Downloaded updates must pass the app’s dedicated Ed25519 signature verification. Development builds do not update.
+Stable is for everyday use. Beta receives preview builds and newer stable releases. It has a separate purple icon, app name, preferences, and permission identity. Both can be installed; quit one before running the other. Downloads are architecture-specific. Release builds use Sparkle for automatic update checks and offer **Check now…** in the menu. Choose On startup, Daily, Weekly, Monthly, or Never; stable defaults to weekly and beta defaults to startup checks. Downloaded updates must pass the app’s dedicated Ed25519 signature verification. Development builds do not update.
 
 See [the release guide](docs/RELEASING.md) for packaging and launch requirements.
 

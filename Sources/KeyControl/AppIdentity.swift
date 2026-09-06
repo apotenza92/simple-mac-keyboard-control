@@ -8,8 +8,13 @@ enum AppIdentity {
     }
 
     /// Matches the square half-sun/speaker SVG. macOS supplies template tinting.
-    static let menuImage: NSImage = {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: true) { _ in
+    static let menuImage = makeMenuImage(pointSize: 18)
+
+    static func makeMenuImage(pointSize: CGFloat) -> NSImage {
+        let image = NSImage(size: NSSize(width: pointSize, height: pointSize), flipped: true) { _ in
+            let transform = NSAffineTransform()
+            transform.scale(by: pointSize / 18)
+            transform.concat()
             NSColor.black.setStroke()
             NSColor.black.setFill()
             let sun = NSBezierPath()
@@ -57,5 +62,5 @@ enum AppIdentity {
         }
         image.isTemplate = true
         return image
-    }()
+    }
 }

@@ -18,7 +18,7 @@ struct PermissionsView: View {
             permission(
                 title: keyboardPermissionTitle,
                 detail: "Volume and brightness keys",
-                status: model.hasAccessibilityPermission ? nil : "Required",
+                status: nil,
                 enabled: model.hasAccessibilityPermission,
                 actionTitle: model.hasAccessibilityPermission ? "Open Settings" : "Allow…"
             ) {
@@ -31,7 +31,7 @@ struct PermissionsView: View {
             permission(
                 title: "Input Monitoring",
                 detail: "External keyboard brightness keys",
-                status: model.hasInputMonitoringPermission ? nil : (needsRawKeys ? "Needed" : "Optional"),
+                status: nil,
                 enabled: model.hasInputMonitoringPermission,
                 actionTitle: model.hasInputMonitoringPermission ? "Open Settings" : "Allow…"
             ) {
@@ -42,30 +42,15 @@ struct PermissionsView: View {
             if needsSystemAudio {
                 Divider()
 
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(spacing: 12) {
-                        VStack(alignment: .leading, spacing: 7) {
-                            permissionHeading("System Audio Recording", status: nil,
-                                              enabled: audio.isApplyingSoftwareGain)
-                                .help("Audio status reflects the running pipeline, not a verified macOS permission grant.")
-                            Text("Enables volume control.")
-                                .font(.body).foregroundStyle(.secondary)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        VStack(alignment: .trailing, spacing: 7) {
-                            Button("Open Settings") { model.openPrivacySettings(.systemAudio) }
-                            if canTryAudio {
-                                Button("Try Audio") { audio.start() }
-                            }
-                        }
-                        .controlSize(.regular)
-                        .fixedSize()
-                    }
-                    if case .failed(_, let reason) = audio.state {
-                        Text(reason).font(.body).foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                permission(
+                    title: "System Audio Recording",
+                    detail: "Volume control for audio interfaces",
+                    status: nil,
+                    enabled: audio.isApplyingSoftwareGain,
+                    actionTitle: canTryAudio ? "Allow…" : nil,
+                    enabledLabel: "Audio control working"
+                ) {
+                    model.requestSystemAudio()
                 }
             }
         }
@@ -97,27 +82,29 @@ struct PermissionsView: View {
     }
 
     private func permission(title: String, detail: String, status: String?,
-                            enabled: Bool, actionTitle: String,
+                            enabled: Bool, actionTitle: String?, enabledLabel: String = "Enabled",
                             action: @escaping () -> Void) -> some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 7) {
-                permissionHeading(title, status: status, enabled: enabled)
+                permissionHeading(title, status: status, enabled: enabled, enabledLabel: enabledLabel)
                 Text(detail).font(.body).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Button(actionTitle, action: action)
-                .controlSize(.regular)
-                .fixedSize()
+            if let actionTitle {
+                Button(actionTitle, action: action)
+                    .controlSize(.regular)
+                    .fixedSize()
+            }
         }
     }
 
-    private func permissionHeading(_ title: String, status: String?, enabled: Bool) -> some View {
+    private func permissionHeading(_ title: String, status: String?, enabled: Bool, enabledLabel: String = "Enabled") -> some View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: enabled ? "checkmark.circle.fill" : "circle")
                 .font(.body)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel(enabled ? "Enabled" : "Not enabled")
+                .accessibilityLabel(enabled ? enabledLabel : "Not enabled")
             VStack(alignment: .leading, spacing: 3) {
                 Text(title).font(.body.weight(.semibold))
                     .fixedSize(horizontal: false, vertical: true)
@@ -131,53 +118,55 @@ struct PermissionsView: View {
 }
 
 struct SetupGuideView: View {
-    // Size the window for its controls; prose wraps within this content width.
-    static let windowSize = NSSize(width: 420, height: 580)
+    static let windowSize = NSSize(width: 480, height: 540)
     @ObservedObject var model: AppModel
-    @State private var step = 0
+    private var step: Int { model.setupStep }
 
     var body: some View {
         VStack(spacing: 0) {
             ScrollView {
-                VStack(alignment: .leading, spacing: 22) {
-                    Image(systemName: step == 1 ? "lock.shield" : "keyboard")
-                        .font(.system(size: 36, weight: .light))
-                        .foregroundStyle(.tint)
-                        .accessibilityHidden(true)
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(title).font(.system(size: 25, weight: .bold))
-                        Text(subtitle).font(.body).foregroundStyle(.secondary)
+                VStack(spacing: 28) {
+                    VStack(spacing: 12) {
+                        headerIcon
+                            .frame(height: 96)
+                        VStack(spacing: 8) {
+                            Text(title).font(.title2.weight(.semibold))
+                            Text(subtitle).foregroundStyle(.secondary)
+                        }
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                     }
-                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity)
 
-                    switch step {
-                    case 0:
-                        VStack(alignment: .leading, spacing: 18) {
+                    VStack(alignment: .leading, spacing: 20) {
+                        switch step {
+                        case 0:
                             feature("speaker.wave.2", title: "Volume and mute",
                                     detail: "Use your keyboard with audio interfaces that lack Mac volume controls.")
                             Divider()
                             feature("sun.max", title: "Display brightness",
-                                    detail: "Adjust compatible external monitors with your brightness keys.")
+                                    detail: "Adjust external monitors with your brightness keys.")
+                        case 1:
+                            PermissionsView(model: model)
+                        default:
+                            feature("slider.horizontal.3", title: "Quick controls",
+                                    detail: "Click the menu bar icon to adjust levels or check permissions.")
+                            Divider()
+                            feature("keyboard", title: "Try your keys",
+                                    detail: "Use your volume, mute, and brightness keys as usual.")
+                            Text("You can return to permissions from the menu at any time.")
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
-                        .padding(16)
-                        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 14))
-                    case 1:
-                        PermissionsView(model: model)
-                    default:
-                        feature("menubar.rectangle", title: "Find us in the menu bar",
-                                detail: "Adjust levels, check permissions, or quit. Nothing in your Dock.")
-                        feature("keyboard", title: "Try your usual keys",
-                                detail: "Press volume, mute, and brightness. Your hardware still needs to support the selected control.")
-                        Text("Skipped a permission? You can enable it from the menu whenever you’re ready.")
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(24)
+                .padding(28)
             }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
             Divider()
-            HStack {
+            HStack(spacing: 12) {
                 HStack(spacing: 6) {
                     ForEach(0..<3) { index in
                         Circle().fill(index == step ? Color.accentColor : Color.secondary.opacity(0.3))
@@ -187,10 +176,10 @@ struct SetupGuideView: View {
                 .accessibilityLabel("Step \(step + 1) of 3")
                 Spacer()
                 if step > 0 {
-                    Button("Back") { step -= 1 }
+                    Button("Back") { model.setupStep -= 1 }
                 }
                 Button(step == 0 ? "Get Started" : step == 1 ? "Continue" : "Done") {
-                    if step == 2 { model.finishSetup() } else { step += 1 }
+                    if step == 2 { model.finishSetup() } else { model.setupStep += 1 }
                 }
                 .buttonStyle(.borderedProminent)
                 .keyboardShortcut(.defaultAction)
@@ -199,35 +188,54 @@ struct SetupGuideView: View {
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
         }
+        .font(.body)
         .frame(width: Self.windowSize.width, height: Self.windowSize.height)
-        .transaction { transaction in
-            transaction.animation = nil
-            transaction.disablesAnimations = true
+    }
+
+    @ViewBuilder
+    private var headerIcon: some View {
+        switch step {
+        case 0:
+            Image(nsImage: NSWorkspace.shared.icon(forFile: Bundle.main.bundlePath))
+                .resizable()
+                .interpolation(.high)
+                .frame(width: 96, height: 96)
+                .accessibilityLabel("\(AppIdentity.name) app icon")
+        case 1:
+            Image(systemName: "lock.shield")
+                .font(.system(size: 56, weight: .light))
+                .foregroundStyle(.tint)
+                .accessibilityHidden(true)
+        default:
+            Image(nsImage: AppIdentity.makeMenuImage(pointSize: 88))
+                .renderingMode(.template)
+                .foregroundStyle(.primary)
+                .accessibilityLabel("\(AppIdentity.name) menu bar icon")
         }
     }
 
     private var title: String {
         switch step {
-        case 0: return "Your keyboard.\nYour hardware."
+        case 0: return "Welcome"
         case 1: return "Allow keyboard control"
-        default: return "Make yourself at home"
+        default: return "Find this icon in your menu bar"
         }
     }
 
     private var subtitle: String {
         switch step {
-        case 0: return "Welcome to \(AppIdentity.name)."
-        case 1: return "Enable the access your setup needs. You can also do this later from the menu."
-        default: return "A small utility, quietly in the background."
+        case 0: return AppIdentity.name
+        case 1: return "Enable the access your setup needs."
+        default: return "Your volume and brightness controls are here."
         }
     }
 
     private func feature(_ symbol: String, title: String, detail: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            Image(systemName: symbol).font(.title3).frame(width: 24)
-                .foregroundStyle(.secondary).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 5) {
-                Text(title).font(.headline)
+        HStack(alignment: .top, spacing: 14) {
+            Image(systemName: symbol).font(.title2).frame(width: 28)
+                .foregroundStyle(.tint).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.body.weight(.semibold))
                 Text(detail).foregroundStyle(.secondary)
             }
             .fixedSize(horizontal: false, vertical: true)

@@ -36,6 +36,9 @@ cp "${repo_dir}/Resources/CompiledIcons/${icon_name}/Assets.car" "${app_dir}/Con
 cp "${repo_dir}/Resources/CompiledIcons/${icon_name}/${icon_name}.icns" "${app_dir}/Contents/Resources/"
 mkdir -p "${app_dir}/Contents/Frameworks"
 ditto "${repo_dir}/.build/artifacts/sparkle/Sparkle/Sparkle.xcframework/macos-arm64_x86_64/Sparkle.framework" "${app_dir}/Contents/Frameworks/Sparkle.framework"
+ditto "${repo_dir}/Resources/Licenses" "${app_dir}/Contents/Resources/Licenses"
+# Ship PermissionFlow's localized helper resources in the installed app.
+ditto "${build_dir}/PermissionFlow_PermissionFlow.bundle" "${app_dir}/Contents/Resources/PermissionFlow_PermissionFlow.bundle"
 cp "${build_dir}/KeyControl" "${app_dir}/Contents/MacOS/KeyControl"
 cp "${repo_dir}/Resources/Info.plist" "${app_dir}/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleIconFile $icon_name" "${app_dir}/Contents/Info.plist"

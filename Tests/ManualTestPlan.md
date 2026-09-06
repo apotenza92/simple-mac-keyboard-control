@@ -80,7 +80,7 @@ The dropdown uses System Menu by default; the HUD independently uses Regular gla
 2. Relaunch an existing installation; confirm onboarding is not shown again and current access is retained.
 3. Expand Permissions in the menu. Confirm Accessibility and Input Monitoring status updates after returning from System Settings.
 4. Confirm each Open Settings button opens the appropriate privacy pane; grant access manually.
-5. Confirm System Audio Recording reports pipeline status rather than claiming permission is granted, and native-volume outputs hide the System Audio Recording section.
+5. Confirm System Audio Recording uses the same compact row as the other permissions, shows a checkmark only for an active pipeline, and is hidden for native-volume outputs.
 
 ## Verification record — 2026-09-04
 
@@ -240,3 +240,83 @@ update test to a future session.
 The smoke cleanup regression also passes: a key is applied, HUD capture fails,
 and cleanup restores the original volume. A live Scarlett/DDC key/HUD and
 quit/relaunch smoke passed after that change.
+
+### Onboarding restart and permission guidance
+
+- On a setup that has not been completed, advance to permissions, request access, and choose macOS’s Restart Now. Confirm the guide reopens at the permissions step.
+- Close the guide without Done and relaunch: it must still reopen. Continue to the final step and relaunch before Done: the final step must return. Only Done suppresses setup on subsequent launches.
+- Accessibility and Input Monitoring actions should open PermissionFlow’s helper with this app as the drag source. Verify the installed bundle, not only a SwiftPM executable, so helper resources are covered.
+- System Audio Recording should use one compact row with Allow before activation and only a checkmark afterward. Allow must request audio directly without opening Settings or requesting screen capture. The accessible checkmark label describes working audio control, not a verified permission grant.
+
+Onboarding verification, 2026-09-06 (development build from the working tree):
+- All 19 Swift tests, signed app build, strict signature verification, and plist validation passed.
+- In the installed development app, quit/relaunch restored step 2 and step 3 independently. The completion preference remained false until the visible Done button was clicked.
+- Input Monitoring opened the correct System Settings pane through PermissionFlow. The localized helper resource bundle is included in the signed app; no new permission grants were made during this check.
+- Lifecycle smoke passed on Scarlett 2i2 USB: normal quit stopped the pipeline; relaunch restored output and saved gain. Evidence: `build/onboarding-lifecycle-result.json`, executable SHA-256 `c6526e31f26f66a00a7cc7522096c4bc99d4053bad4ee6fe6e8eae3cdc3f000c`.
+- Remaining coverage: the actual macOS permission-change Restart Now dialog and drag-to-authorize were not exercised; restart persistence was verified with ordinary app quit/relaunch. No audible or physical display observations are claimed.
+
+Modern onboarding and update settings follow-up, 2026-09-06:
+- Visually checked all three installed development onboarding pages: centered app icon on Welcome, compact permission rows, and an enlarged vector menu glyph on the final page.
+- Reopening completed onboarding showed System Audio Recording Allow with the pipeline stopped. Clicking Allow activated the previously permitted pipeline without opening System Settings. The row then showed only its checkmark and description.
+- Updated build passed 20 Swift tests, signed bundle validation, 9 release-tool tests, 5 download tests, and lifecycle smoke (`build/update-settings-lifecycle-result.json`).
+- The update menu uses one picker: On startup, Daily, Weekly, Monthly, and Never. Stable defaults to Weekly; beta defaults to On startup. Daily means 24 hours and Monthly means 30 days. Never persists through Sparkle and leaves manual checks available. Startup also retains weekly background checks for long-running sessions. Development builds keep updates disabled.
+- Release-channel live network scheduling and a new previous-version installation test remain part of the next release validation; this local run did not publish a release.
+
+Native menu follow-up, 2026-09-06:
+- Replaced the window/popover host and the single custom menu-panel row with NSMenu, native NSMenuItem actions/checkmarks/separators, and SwiftUI-hosted level rows only. Permissions and update frequency use native submenus. No custom menu background, corner mask, or forced color scheme is applied.
+- Fixed the dev launcher to stop dev instances whose command line includes launch arguments before installing the new build; verified the duplicate-process cause during investigation.
+- All 21 Swift tests, signed build validation, and lifecycle smoke passed (`build/native-rows-lifecycle-result.json`). Native menu UI inspection remains a gap because the computer-use tool cannot acquire the menu-only app window. Check slider dragging, menu checkmarks, permission actions, and repeated submenu opening in the running dev build.
+
+### Native menu accent follow-up (2026-09-06)
+
+- Replaced embedded checkbox buttons with NSMenuItem checked states; volume,
+  brightness, link, and login now use standard menu selection rendering.
+- Level controls use NSSlider without an app-specific tint; invalidate custom
+  menu views after tracking starts so their initial drawing uses menu appearance.
+- `scripts/test.sh`: 21 tests and signed development build passed.
+- Open-menu screenshot `/tmp/keycontrol-native-open.png` shows both sliders blue
+  before hover and both enabled menu checkmarks in the normal foreground color.
+- Automated hover capture dismissed the menu, so sustained hover and system-accent
+  changes still need interactive verification; no physical hardware claim added.
+
+### Square checkbox restoration (2026-09-06)
+
+- Restored native NSButton checkbox views for volume keys, brightness keys, link
+  brightness, and launch at login, with matching menu-item/button enabled state.
+- Removed experimental background, content-tint, and prominence overrides after
+  screenshots showed they did not resolve the gray brightness checkmark.
+- Square controls are restored, but checked brightness still appears gray while
+  volume appears blue. This visual regression remains open; do not claim the
+  accent/hover issue is fixed. No audio or DDC implementation changed.
+
+### Menu activation fix (2026-09-06)
+
+- Resolved the square checkbox accent regression above by activating the accessory
+  application before status-menu tracking. Native NSButton/NSSlider rendering is
+  retained; no checkbox artwork, fixed colors, or custom background is used.
+- Restore the status-button action after menu tracking, so subsequent openings
+  follow the same activation path. Restore the previous application on closing
+  only while KeyControl remains active.
+- `scripts/test.sh`: 21 tests, build, signing and plist verification passed.
+- `build/menu-verification/lifecycle.json`: normal quit and relaunch passed.
+- Screenshots confirm both checked controls and enabled sliders use blue before,
+  during and after hover; unchecked brightness disables its slider. Opening and
+  closing Permissions preserves geometry and colors; reopening stays consistent.
+- Final context captures: `build/menu-verification/final-open.png` and
+  `build/menu-verification/final-permissions.png`. Hardware gain/brightness values
+  were not adjusted; brightness enablement was toggled off and restored.
+- A targeted synthetic Cmd-Q attempt did not exit the app; shortcut delivery was
+  not established by this attempt. Do not count it as a keyboard shortcut pass.
+
+### v0.1.2 release candidate (2026-09-06)
+
+- Development binary SHA-256: `da84f79ea09a289fbc78d4554ba252b3acc4dad0dc6ca3a3d63c753367a67ab2`.
+- 21 Swift tests, 9 release contract tests, and 5 download tests passed.
+- `scripts/release/lifecycle_smoke.py --controls`: passed with Scarlett 2i2 USB
+  software gain and AW3425DWM hardware brightness. Real volume, mute, and brightness
+  events produced expected controller/HUD states and restored initial 100% levels
+  and unmuted state. Normal quit stopped the pipeline; relaunch restored it.
+- These are automated observations, not new audible or physical display checks.
+  Reuse the prior hardware baseline for unchanged processing and DDC transport.
+- Native architecture, notarization, archive-signature and actual previous-version
+  Sparkle installation gates are required in the tag workflow before publication.

@@ -3,6 +3,7 @@ import ApplicationServices
 import Combine
 import KeyControlCore
 import SwiftUI
+import PermissionFlow
 
 @MainActor
 final class AppModel: ObservableObject {
@@ -34,15 +35,22 @@ final class AppModel: ObservableObject {
     private var started = false
     private var setupWindow: NSWindow?
     private let diagnosticsDefaults = UserDefaults.standard
+    private let setupProgress = SetupProgress()
+    @Published var setupStep = SetupProgress().step {
+        didSet { setupProgress.step = setupStep }
+    }
+    private let permissionFlow = PermissionFlow.makeController(
+        configuration: .init(promptForAccessibilityTrust: false)
+    )
 
     func start() {
         guard !started else { return }
         started = true
-        // Existing installs keep their behaviour. Fresh installs start with an
-        // explanation, and request access only from the corresponding button.
-        let needsSetup = !diagnosticsDefaults.bool(forKey: "didRequestAccessibility")
-            && !diagnosticsDefaults.bool(forKey: "hasCompletedSetup")
-        if !needsSetup { audio.start() }
+        if ProcessInfo.processInfo.arguments.contains("--onboarding"), setupProgress.isComplete {
+            beginSetupAgain()
+        }
+        let needsSetup = !setupProgress.isComplete
+        if !needsSetup || diagnosticsDefaults.bool(forKey: "didRequestSystemAudio") { audio.start() }
         brightness.rediscover()
         configureKeyCapture(prompt: false)
         updateBrightnessListener()
@@ -95,7 +103,9 @@ final class AppModel: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
-                self?.audio.start()
+                if let self, self.setupProgress.isComplete || self.diagnosticsDefaults.bool(forKey: "didRequestSystemAudio") {
+                    self.audio.start()
+                }
                 self?.brightness.rediscover()
                 self?.updateBrightnessListener()
             }
@@ -134,21 +144,32 @@ final class AppModel: ObservableObject {
         updateBrightnessListener()
     }
 
-    enum PrivacyPane: String {
-        case accessibility = "Privacy_Accessibility"
-        case inputMonitoring = "Privacy_ListenEvent"
-        case systemAudio = "Privacy_ScreenCapture"
+    enum PrivacyPane {
+        case accessibility
+        case inputMonitoring
     }
 
     func openPrivacySettings(_ pane: PrivacyPane) {
-        let base = "x-apple.systempreferences:com.apple.preference.security"
-        guard let target = URL(string: "\(base)?\(pane.rawValue)") else { return }
-        if !NSWorkspace.shared.open(target), let fallback = URL(string: "\(base)?Privacy") {
-            NSWorkspace.shared.open(fallback)
-        }
+        permissionFlow.authorize(
+            pane: pane == .accessibility ? .accessibility : .inputMonitoring,
+            suggestedAppURLs: [Bundle.main.bundleURL]
+        )
+    }
+
+    func requestSystemAudio() {
+        diagnosticsDefaults.set(true, forKey: "didRequestSystemAudio")
+        audio.start()
+    }
+
+    private func beginSetupAgain() {
+        setupProgress.beginAgain()
+        setupStep = 0
+        diagnosticsDefaults.set(false, forKey: "didRequestSystemAudio")
+        audio.stop()
     }
 
     func showSetupGuide() {
+        if setupProgress.isComplete { beginSetupAgain() }
         if let setupWindow {
             setupWindow.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
@@ -166,7 +187,7 @@ final class AppModel: ObservableObject {
     }
 
     func finishSetup() {
-        diagnosticsDefaults.set(true, forKey: "hasCompletedSetup")
+        setupProgress.finish()
         setupWindow?.close()
     }
 
