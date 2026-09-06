@@ -41,6 +41,21 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
         run: python3 scripts/release/verify_distribution.py "$RELEASE_TAG" --wait-seconds 2400
+      - name: Summarize distribution status
+        if: always()
+        run: |
+          python3 - <<'PYCODE'
+          import json, os
+          from pathlib import Path
+          path = Path('distribution-status.json')
+          report = json.loads(path.read_text()) if path.exists() else {'status': 'failed before verification', 'checks': {}}
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('## Distribution: ' + report['status'] + '\n\n')
+              for name, status in report['checks'].items():
+                  summary.write('- ' + name + ': ' + status + '\n')
+              for error in report.get('errors', []):
+                  summary.write('\n' + error + '\n')
+          PYCODE
       - name: Preserve distribution status
         if: always()
         uses: actions/upload-artifact@v4
