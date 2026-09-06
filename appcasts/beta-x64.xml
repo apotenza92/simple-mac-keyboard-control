@@ -3,18 +3,20 @@
   <channel>
     <title>Simple Mac Keyboard Control Beta</title>
     <item>
-      <title>v0.1.1</title>
-      <sparkle:version>100190000</sparkle:version>
-      <sparkle:shortVersionString>0.1.1</sparkle:shortVersionString>
+      <title>v0.1.2</title>
+      <sparkle:version>100290000</sparkle:version>
+      <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
-      <description sparkle:format="plain-text"># Simple Mac Keyboard Control 0.1.1
+      <description sparkle:format="plain-text"># Simple Mac Keyboard Control 0.1.2
 
-- Correct Homebrew cask version interpolation while retaining exact archive checksums.
-- Validate real Sparkle installation and relaunch from the 0.1.0 baseline on both architectures and channels.
+- Redesigned the menu using native macOS menus, square checkboxes, and sliders that follow the system accent colour. Fixed colour changes on hover and layout issues when opening Permissions.
+- Added an update schedule menu with On startup, Daily, Weekly, Monthly, and Never. Stable defaults to weekly; beta defaults to checking at startup.
+- Refreshed onboarding with larger icons and clearer permission controls. Onboarding resumes after a permissions restart and stays incomplete until you finish it.
+- System Audio Recording now starts directly from Allow, without opening System Settings. Integrated PermissionFlow for keyboard permission setup.
 
-App controls and hardware behavior are unchanged from 0.1.0. Requires macOS 14.4 or later.
+Available for Apple silicon and Intel in both stable and beta app identities. Audio processing and DDC transport are unchanged.
 </description>
-      <enclosure url="https://github.com/apotenza92/simple-mac-keyboard-control/releases/download/v0.1.1/Simple-Mac-Keyboard-Control-Beta-v0.1.1-macos-x64.zip" length="3194839" type="application/octet-stream" sparkle:edSignature="Un7FUBzz4sperfpRI4VYisWzZtda1ApdvZA1pgSOSXURMKuO6IQQteZyC7roNi0qH0HKy2viVk+vmzf7PRP1AQ==" />
+      <enclosure url="https://github.com/apotenza92/simple-mac-keyboard-control/releases/download/v0.1.2/Simple-Mac-Keyboard-Control-Beta-v0.1.2-macos-x64.zip" length="3362343" type="application/octet-stream" sparkle:edSignature="Xap2L30iq8OeHFGWhUgUcoRsEaag1WO0er2dtre57ueM8UIEgIXS2N+sy4egCbeplgC37xikpkdSsSyjEBMmCg==" />
     </item>
   </channel>
 </rss>
