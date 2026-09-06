@@ -37,6 +37,10 @@ class PublicationTests(unittest.TestCase):
                     for cask in Path('out/publication/Casks').glob('*.rb'):
                         self.assertIn('v#{version}', cask.read_text())
                         self.assertNotIn('sha256 :no_check', cask.read_text())
+                        if '@beta' in cask.name:
+                            self.assertIn('strategy :github_releases do |json|', cask.read_text())
+                            self.assertNotIn('api.github.com', cask.read_text())
+                            self.assertNotIn('release["prerelease"]', cask.read_text())
                     Path('installed').mkdir(); install(Path('out/appcasts'),Path('installed'))
                     before={p.name:p.read_bytes() for p in Path('installed').glob('*.xml')}
                     install(Path('out/appcasts'),Path('installed'))

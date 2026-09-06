@@ -56,12 +56,34 @@ a macOS 15 runner asset-runtime crash without substituting raster artwork.
    Sparkle signatures, and tamper rejection.
 5. After native package validation, the secret-free publication job attests the Homebrew
    bundle, publishes the immutable release, and advances feeds without downgrades.
-6. The tap's scheduled reconciliation discovers the attested release and publishes
-   the approved casks through its protected publisher. For immediate publication,
-   dispatch `publish-homebrew.yml` in `apotenza92/homebrew-tap` with product, tag,
-   commit, source run ID/attempt, and correlation ID. Source jobs have no tap write token.
-7. Dispatch `pages.yml` to publish the minimal download page. Verify public package
-   URLs, each feed, and both casks before announcing availability.
+6. The tap's KeyControl reconciliation checks every ten minutes for successful,
+   bundle-backed source releases. It skips current versions and publishes through
+   the existing protected publisher. GitHub may delay scheduled jobs. The source
+   repository has no tap write token. For urgent recovery, dispatch the tap's
+   `reconcile-keycontrol.yml`; the exact `publish-homebrew.yml` inputs remain available.
+7. Successful release runs automatically trigger `distribution.yml`, which deploys
+   Pages and verifies public package hashes and provenance, all four signed feeds,
+   both casks, and deployed page source. It waits up to 40 minutes for tap propagation
+   and uploads `distribution-status.json`. A timeout reports partial publication;
+   it does not roll back or claim that the already-public release failed to exist.
+   Signature, provenance and package-integrity failures fail immediately.
+8. Rerun `Verify release distribution` with the published tag after recovering a
+   failed tap or Pages job. This verifies the existing release without rebuilding,
+   retagging, or publishing a duplicate. If a newer beta exists, verification follows
+   each channel's newest release rather than expecting a downgrade to stable.
+
+## CI and network failures
+
+`CI` runs shared release/download contract tests once on Linux and native app tests
+on ARM and Intel. The former duplicate `Checks` workflow is consolidated into CI.
+Release packaging retains its native tests and independent package/update gates.
+
+Generated beta casks use Homebrew's `github_releases` strategy with a custom filter
+that includes beta and stable releases. Unlike generic JSON fetching, this uses
+Homebrew's authenticated GitHub API client and `HOMEBREW_GITHUB_API_TOKEN` in CI.
+The tap retries transport/rate-limit audit failures at most twice (30 and 90 seconds),
+logs safe GitHub response/rate-limit metadata, and leaves permanent audit failures
+fatal. It never skips audit, checksum, signature or provenance checks.
 
 Release signing credentials are isolated in tag-only `release-signing` and
 `sparkle-signing` environments. Apple metadata is public configuration; the P12,

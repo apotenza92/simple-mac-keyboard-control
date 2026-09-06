@@ -61,8 +61,8 @@ def prepare(tag, assets, output, private_key):
             cask_url = url.replace(tag, 'v#{version}')
             sections.append(f'  on_{"arm" if arch == "arm64" else "intel"} do\n    sha256 "{digest}"\n\n    url "{cask_url}"\n  end')
         livecheck = '  livecheck do\n    url :url\n    strategy :github_latest\n  end' if channel == 'stable' else f"""  livecheck do
-    url "https://api.github.com/repos/{REPOSITORY}/releases"
-    strategy :json do |json|
+    url :url
+    strategy :github_releases do |json|
       json
         .reject {{ |release| release["draft"] }}
         .map {{ |release| release["tag_name"].delete_prefix("v") }}

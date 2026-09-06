@@ -1,6 +1,7 @@
 name: Publish download page
 on:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 concurrency:

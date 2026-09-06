@@ -1,0 +1,50 @@
+name: Verify release distribution
+on:
+  workflow_run:
+    workflows: ['Release stable and beta']
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Published release tag to verify
+        required: true
+        type: string
+permissions:
+  contents: read
+  attestations: read
+concurrency:
+  group: distribution
+  cancel-in-progress: false
+jobs:
+  pages:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+  verify:
+    needs: pages
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      # Run trusted main scripts, never code/artifacts supplied by a triggering run.
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: pip install 'cryptography==45.0.7'
+      - name: Verify public packages and wait for protected tap publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.event.workflow_run.head_branch }}
+        run: python3 scripts/release/verify_distribution.py "$RELEASE_TAG" --wait-seconds 2400
+      - name: Preserve distribution status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: distribution-status
+          path: distribution-status.json
+          if-no-files-found: warn
