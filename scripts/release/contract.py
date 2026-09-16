@@ -32,15 +32,24 @@ def package(tag, channel, arch):
                 asset=f'{PREFIX}{"-Beta" if suffix else ""}-{tag}-macos-{arch}.zip')
 
 
+def native_matrix(tag):
+    parse_tag(tag)
+    return {'include': [dict(arch=arch, runner=runner) for arch, runner in
+                        [('arm64', 'macos-15'), ('x64', 'macos-15-intel')]]}
+
+
 if __name__ == '__main__':
     import argparse, json
     parser = argparse.ArgumentParser()
     parser.add_argument('tag')
     parser.add_argument('--matrix', action='store_true')
+    parser.add_argument('--native-matrix', action='store_true')
     parser.add_argument('--channel', choices=['stable', 'beta'])
     parser.add_argument('--arch', choices=['arm64', 'x64'])
     args = parser.parse_args()
-    if args.matrix:
+    if args.native_matrix:
+        print(json.dumps(native_matrix(args.tag)))
+    elif args.matrix:
         print(json.dumps({'include': [dict(package(args.tag, channel, arch), runner=runner)
             for channel in parse_tag(args.tag)['channels']
             for arch, runner in [('arm64', 'macos-15'), ('x64', 'macos-15-intel')]]}))

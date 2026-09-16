@@ -5,6 +5,7 @@ import base64
 import plistlib
 import hashlib
 import json
+import re
 from pathlib import Path
 import subprocess
 import tarfile
@@ -27,6 +28,18 @@ NS = '{http://www.andymatuschak.org/xml-namespaces/sparkle}'
 def fetch(url):
     with urllib.request.urlopen(url, timeout=30) as response:
         return response.read()
+
+
+def repository_file(repository, path, revisions):
+    # Resolve each branch once per polling pass, then read immutable URLs. Raw
+    # /main URLs can remain CDN-cached after a successful tap/feed publication.
+    if repository not in revisions:
+        sha = subprocess.check_output(['gh', 'api', f'repos/{repository}/commits/main',
+                                       '--jq', '.sha'], text=True).strip()
+        if not re.fullmatch(r'[0-9a-f]{40}', sha):
+            raise ValueError('Invalid repository revision')
+        revisions[repository] = sha
+    return fetch(f'https://raw.githubusercontent.com/{repository}/{revisions[repository]}/{path}')
 
 
 def select(releases, channel):
@@ -99,14 +112,17 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('tag')
     parser.add_argument('--wait-seconds', type=int, default=0)
+    parser.add_argument('--output', type=Path, default=Path('distribution-status.json'))
     args = parser.parse_args()
     parse_tag(args.tag)
+    args.output.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + args.wait_seconds
     report = {'requested_tag': args.tag, 'status': 'partial', 'checks': {}, 'errors': []}
     with tempfile.TemporaryDirectory() as temporary:
         cache = {}
         while True:
             errors = []
+            revisions = {}
             def check(name, action):
                 try:
                     action()
@@ -114,7 +130,7 @@ def main():
                 except (IntegrityError, InvalidSignature) as error:
                     report['status'] = 'failed'
                     report['errors'] = [f'{name}: integrity verification failed: {error}']
-                    Path('distribution-status.json').write_text(json.dumps(report, indent=2) + '\n')
+                    args.output.write_text(json.dumps(report, indent=2) + '\n')
                     raise SystemExit(report['errors'][0])
                 except Exception as error:
                     report['checks'][name] = 'failed'
@@ -140,12 +156,12 @@ def main():
                     manifest, files = publication(tag)
                     token = 'simple-mac-keyboard-control' + ('@beta' if channel == 'beta' else '')
                     name = 'Casks/' + token + '.rb'
-                    remote = fetch('https://raw.githubusercontent.com/apotenza92/homebrew-tap/main/' + name)
+                    remote = repository_file('apotenza92/homebrew-tap', name, revisions)
                     if remote != files[name]:
                         raise ValueError('Public cask has not converged to ' + tag)
                     for arch in ['arm64', 'x64']:
                         artifact = next(a for a in manifest['artifacts'] if a['channel'] == channel and a['architecture'] == arch)
-                        feed = fetch(f'https://raw.githubusercontent.com/{REPOSITORY}/main/appcasts/{channel}-{arch}.xml')
+                        feed = repository_file(REPOSITORY, f'appcasts/{channel}-{arch}.xml', revisions)
                         check_feed(feed, artifact, tag)
                         signature = ET.fromstring(feed).find('./channel/item/enclosure').get(NS + 'edSignature')
                         key = plistlib.loads(Path('Resources/Info.plist').read_bytes())['SUPublicEDKey']
@@ -159,7 +175,7 @@ def main():
                 check('page ' + name, page_check)
             report['errors'] = errors
             report['status'] = 'partial' if errors else 'passed'
-            Path('distribution-status.json').write_text(json.dumps(report, indent=2) + '\n')
+            args.output.write_text(json.dumps(report, indent=2) + '\n')
             print(json.dumps(report), flush=True)
             if not errors or time.monotonic() >= deadline:
                 break

@@ -44,7 +44,7 @@ jobs:
       - id: meta
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-        run: echo "matrix=$(python3 scripts/release/contract.py "$RELEASE_TAG" --matrix)" >> "$GITHUB_OUTPUT"
+        run: echo "matrix=$(python3 scripts/release/contract.py "$RELEASE_TAG" --native-matrix)" >> "$GITHUB_OUTPUT"
   package:
     needs: prepare
     strategy:
@@ -56,10 +56,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Native tests and development build
         run: scripts/test.sh
-      - name: Sign, notarize, and verify package
+      - name: Sign, notarize, and verify each channel
         env:
           RELEASE_TAG: ${{ github.ref_name }}
-          RELEASE_CHANNEL: ${{ matrix.channel }}
           APPLE_SIGNING_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_P12_BASE64 }}
           APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
           APPLE_NOTARYTOOL_KEY_P8_BASE64: ${{ secrets.APPLE_NOTARYTOOL_KEY_P8_BASE64 }}
@@ -68,10 +67,12 @@ jobs:
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
           APPLE_NOTARYTOOL_KEY_ID: ${{ vars.APPLE_NOTARYTOOL_KEY_ID }}
           APPLE_NOTARYTOOL_ISSUER_ID: ${{ vars.APPLE_NOTARYTOOL_ISSUER_ID }}
-        run: scripts/release/ci-package.sh "$RELEASE_TAG" "$RELEASE_CHANNEL"
+        # Both identities use the same compiled Swift product. SwiftPM reuses
+        # this job's tested build while each bundle is separately signed/notarized.
+        run: scripts/release/ci-package.sh "$RELEASE_TAG"
       - uses: actions/upload-artifact@v4
         with:
-          name: package-${{ matrix.channel }}-${{ matrix.arch }}
+          name: package-${{ matrix.arch }}
           path: build/releases/${{ github.ref_name }}/
           if-no-files-found: error
   draft:

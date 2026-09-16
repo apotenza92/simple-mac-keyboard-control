@@ -1,6 +1,21 @@
 #!/usr/bin/env bash
 # CI credential handling adapted from Dockmint. Never run with shell tracing.
 set -euo pipefail
+tag="${1:?Usage: ci-package.sh TAG [stable|beta]}"
+# Validate the tag/channel before importing credentials. No second argument means
+# all channels authorized by the tag, packaged sequentially in this native job.
+channels="$(python3 - "$tag" "${2:-}" <<'PY'
+import sys
+sys.path.insert(0, 'scripts/release')
+from contract import parse_tag
+channels = parse_tag(sys.argv[1])['channels']
+if sys.argv[2]:
+    if sys.argv[2] not in channels:
+        raise SystemExit('Channel is not permitted by this release tag')
+    channels = [sys.argv[2]]
+print(' '.join(channels))
+PY
+)"
 for variable in \
   APPLE_SIGNING_CERTIFICATE_P12_BASE64 \
   APPLE_SIGNING_CERTIFICATE_PASSWORD \
@@ -67,4 +82,6 @@ security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD"
 security list-keychains -d user -s "$KEYCHAIN" "${ORIGINAL_KEYCHAINS[@]}"
 export KEYCONTROL_SIGNING_IDENTITY="$APPLE_SIGNING_IDENTITY"
 export KEYCONTROL_NOTARY_KEY="$P8_PATH"
-scripts/package-release.sh "$1" "$2"
+for channel in $channels; do
+    scripts/package-release.sh "$tag" "$channel"
+done

@@ -1,7 +1,17 @@
 import unittest
-from contract import parse_tag, package
+from contract import parse_tag, package, native_matrix
 
 class ReleaseContractTests(unittest.TestCase):
+    def test_native_jobs_cover_all_required_packages_once(self):
+        for tag in ['v0.1.4', 'v0.1.4-beta.1']:
+            jobs = native_matrix(tag)['include']
+            self.assertEqual(len(jobs), 2)
+            self.assertEqual({job['arch'] for job in jobs}, {'arm64', 'x64'})
+            assets = [package(tag, channel, job['arch'])['asset']
+                      for job in jobs for channel in parse_tag(tag)['channels']]
+            self.assertEqual(len(assets), len(set(assets)))
+            self.assertEqual(len(assets), 4 if '-beta.' not in tag else 2)
+
     def test_beta_never_produces_stable(self):
         self.assertEqual(parse_tag('v0.1.0-beta.1')['channels'], ['beta'])
         with self.assertRaises(ValueError):

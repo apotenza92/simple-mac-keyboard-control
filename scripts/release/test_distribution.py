@@ -1,7 +1,19 @@
 import unittest
-from verify_distribution import select, check_feed
+from unittest.mock import patch
+from verify_distribution import select, check_feed, repository_file
 
 class DistributionTests(unittest.TestCase):
+    def test_repository_files_use_one_fresh_revision_per_pass(self):
+        revisions = {}
+        with patch('verify_distribution.subprocess.check_output', return_value='a' * 40 + '\n') as revision, \
+             patch('verify_distribution.fetch', return_value=b'content') as fetch:
+            repository_file('owner/repo', 'one', revisions)
+            repository_file('owner/repo', 'two', revisions)
+            self.assertEqual(revision.call_count, 1)
+            self.assertEqual(fetch.call_args.args[0], 'https://raw.githubusercontent.com/owner/repo/' + 'a' * 40 + '/two')
+            repository_file('owner/repo', 'one', {})
+            self.assertEqual(revision.call_count, 2)
+
     def test_beta_may_be_newer_than_stable(self):
         releases = [dict(tag_name=t, draft=False, prerelease='beta' in t)
                     for t in ['v0.1.2', 'v0.2.0-beta.1']]

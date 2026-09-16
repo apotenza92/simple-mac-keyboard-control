@@ -49,7 +49,10 @@ a macOS 15 runner asset-runtime crash without substituting raster artwork.
 2. Add `release-notes/vX.Y.Z.md`, commit, and push main. Hardware observations are
    recorded evidence, not a blanket per-commit environment-variable approval.
 3. Push the tag. The workflow requires the tagged commit to be reachable from main.
-   Native ARM and Intel jobs build, sign, notarize, staple, and package each identity.
+   One native job per architecture runs the tests and development build once, then
+   packages the tag's channels sequentially using the same SwiftPM build directory.
+   Each identity is still separately assembled, signed, notarized, and stapled.
+   Stable tags produce four packages; beta tags produce two.
 4. The workflow stages a draft, signs exact Sparkle archives, and seals the common
    Homebrew publication bundle. Independent native jobs verify identity, version,
    architecture, code-signing certificate, hardened runtime, Gatekeeper, notarization,
@@ -71,6 +74,29 @@ a macOS 15 runner asset-runtime crash without substituting raster artwork.
    failed tap or Pages job. This verifies the existing release without rebuilding,
    retagging, or publishing a duplicate. If a newer beta exists, verification follows
    each channel's newest release rather than expecting a downgrade to stable.
+
+### Follow a release and promptly start Homebrew publication
+
+After pushing the tag, get its `Release stable and beta` run ID from `gh run list`.
+Run this from an environment containing the release test dependencies, using an
+authenticated `gh` login authorized to dispatch the tap workflow:
+
+```sh
+python3 scripts/release/follow_publication.py vX.Y.Z RUN_ID
+```
+
+The command checks the workflow, tag, commit and successful conclusion, then
+dispatches the existing protected Homebrew reconciler within its 15-second polling
+interval. It runs full public distribution verification afterward and writes
+`build/releases/vX.Y.Z/distribution-status.json`. It does not publish a new release,
+skip approval gates, or place a cross-repository credential in CI. Without this
+local follower, the tap's scheduled reconciliation remains the fallback.
+
+Distribution polling resolves fresh repository revisions and reads casks/feeds
+from immutable commit URLs, avoiding stale branch-URL CDN caches. Public archive
+hashes, attestations, Sparkle signatures, website contents, and channel selection
+remain verified. Reusing native build work reduces duplicate compilation and
+runner usage; actual elapsed improvement depends on runner and notarization queues.
 
 ## CI and network failures
 
