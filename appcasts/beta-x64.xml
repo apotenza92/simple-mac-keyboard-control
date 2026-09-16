@@ -3,20 +3,22 @@
   <channel>
     <title>Simple Mac Keyboard Control Beta</title>
     <item>
-      <title>v0.1.2</title>
-      <sparkle:version>100290000</sparkle:version>
-      <sparkle:shortVersionString>0.1.2</sparkle:shortVersionString>
+      <title>v0.1.3</title>
+      <sparkle:version>100390000</sparkle:version>
+      <sparkle:shortVersionString>0.1.3</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>14.4</sparkle:minimumSystemVersion>
-      <description sparkle:format="plain-text"># Simple Mac Keyboard Control 0.1.2
+      <description sparkle:format="plain-text"># Simple Mac Keyboard Control 0.1.3
 
-- Redesigned the menu using native macOS menus, square checkboxes, and sliders that follow the system accent colour. Fixed colour changes on hover and layout issues when opening Permissions.
-- Added an update schedule menu with On startup, Daily, Weekly, Monthly, and Never. Stable defaults to weekly; beta defaults to checking at startup.
-- Refreshed onboarding with larger icons and clearer permission controls. Onboarding resumes after a permissions restart and stays incomplete until you finish it.
-- System Audio Recording now starts directly from Allow, without opening System Settings. Integrated PermissionFlow for keyboard permission setup.
+- Enable or disable individual physical displays from the menu on Apple silicon, including using an external display while keeping your MacBook open. The last usable display stays enabled; checkboxes are hidden when only one display is attached.
+- Automatically restore app-disabled displays when quitting, after an app crash, or when the remaining display is unplugged.
+- Remember software brightness across reconnects and app restarts for monitors with a usable, unique hardware serial identity.
+- Fix missing menu-bar icons after display reconnection by avoiding unnecessary brightness panels and letting display changes settle before restoring dimming.
 
-Available for Apple silicon and Intel in both stable and beta app identities. Audio processing and DDC transport are unchanged.
+Available for Apple silicon and Intel in stable and beta app identities. Display switching requires Apple silicon and independently identifiable physical displays; mirrored and ambiguous configurations are not switchable. Existing audio and brightness functionality remains available on Intel.
+
+Cable recovery, remembered dimming, and menu-bar restoration were physically verified with a MacBook and LG FULL HD display on macOS 27 beta. Sleep/wake and broader hardware coverage remain pending. Automated release checks cover native builds, signing, notarization, and Sparkle upgrades on both architectures.
 </description>
-      <enclosure url="https://github.com/apotenza92/simple-mac-keyboard-control/releases/download/v0.1.2/Simple-Mac-Keyboard-Control-Beta-v0.1.2-macos-x64.zip" length="3362343" type="application/octet-stream" sparkle:edSignature="Xap2L30iq8OeHFGWhUgUcoRsEaag1WO0er2dtre57ueM8UIEgIXS2N+sy4egCbeplgC37xikpkdSsSyjEBMmCg==" />
+      <enclosure url="https://github.com/apotenza92/simple-mac-keyboard-control/releases/download/v0.1.3/Simple-Mac-Keyboard-Control-Beta-v0.1.3-macos-x64.zip" length="3445915" type="application/octet-stream" sparkle:edSignature="wq0P9+XxZ9ZtGjhvyCtXfVV275UKoTp4b7HcmDhewcBI9Tz8lf4Oe9qrbvn8SdEScNgQO3lIMCNcWX4SZvVuBw==" />
     </item>
   </channel>
 </rss>
