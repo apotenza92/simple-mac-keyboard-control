@@ -2,10 +2,11 @@
 
 ## Product boundary
 
-Keep KeyControl a native menu-bar utility for exactly two jobs:
+Keep KeyControl a native menu-bar utility for three focused jobs:
 
 - Route the volume up, volume down, and mute keys through software gain when the current macOS output has no writable volume control.
 - Route brightness up and down to external DDC/CI displays, with software dimming as a fallback when DDC is unavailable.
+- Enable or disable individual physical displays when another usable display remains, including open-lid external-only MacBook use.
 
 Treat equalizers, per-app audio, device routing, custom shortcuts, and display contrast as out of scope. Prefer a focused fix over a new setting.
 
@@ -16,6 +17,7 @@ Treat equalizers, per-app audio, device routing, custom shortcuts, and display c
 - Native-volume outputs keep macOS behavior; KeyControl intercepts volume keys only while software gain is active.
 - Software dimming must leave built-in displays alone, keep a visible minimum, and disappear when the app stops or fails.
 - DDC work stays serialized and off the main thread. A missing private API or unsupported monitor disables brightness without affecting volume.
+- Display disabling requires an independently verified active physical survivor. Arm independent recovery before disabling, restore app-disabled displays on exit, and never persist a request to disable on launch or reconnect. Ambiguous or unsupported display identities are not switchable.
 
 ## Verification
 

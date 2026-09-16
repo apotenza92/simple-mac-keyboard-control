@@ -6,16 +6,17 @@
 
 [Choose stable or beta](https://apotenza92.github.io/simple-mac-keyboard-control/) · [Releases](https://github.com/apotenza92/simple-mac-keyboard-control/releases)
 
-**Version 0.1.1 is available** for Apple silicon and Intel, in stable and beta channels.
+Available for Apple silicon and Intel, in stable and beta channels. See the download page for the latest published version.
 
 A free, open source Mac utility from the maker of [Macsimize](https://apotenza92.github.io/macsimize/) and [Dockmint](https://apotenza92.github.io/dockmint/).
 
 Simple Mac Keyboard Control is a tiny native macOS menu-bar app for keyboard volume, mute, and brightness on hardware macOS cannot normally control.
 
-It has two jobs:
+It has three focused jobs:
 
 - Add software volume and mute to fixed-volume audio outputs such as Focusrite Scarlett interfaces and USB DACs.
 - Send brightness changes to external monitors over DDC/CI, with software dimming when DDC is unavailable.
+- Enable or disable individual displays, including using only an external display with the MacBook open.
 
 There is no Dock icon, equalizer, per-app mixer, device router, or shortcut editor.
 
@@ -66,6 +67,32 @@ Brightness uses the monitor's DDC/CI luminance control. Support depends on the d
 Each connected display has its own menu slider. Native displays use macOS brightness, monitors with a safely identified DDC service use hardware brightness, and other external displays use a click-through black shade. This changes the image, not the physical backlight; 100% removes the shade and 0% retains a visible floor. The shade disappears on exit or crash and starts undimmed when linking is off. Turning off Brightness keys removes it. Reconnecting the display or toggling Brightness keys checks DDC again and removes software dimming if hardware control becomes available.
 
 The **Link brightness** checkbox makes the macOS main display the keyboard brightness master. A brightness key snaps all controllable displays to its updated percentage, and a linked slider sets the same percentage everywhere; unchecking it makes sliders independent and targets brightness keys at the display under the pointer. Linking is on by default. At launch, after detection completes, followers snap to the main display’s current percentage without changing the master. A saved opt-out is respected. Checking Link brightness immediately snaps followers to the main display’s percentage. Matching percentages does not claim to match nits. When the master uses native brightness, macOS applies the key and KeyControl briefly samples its resulting level at frame cadence, publishing the master and followers together to avoid staggered slider updates or a double step. If the main display cannot be controlled, the first controllable display becomes the master. Ambiguous DDC identities use software dimming rather than risk adjusting the wrong monitor. Software shades can appear in screenshots and do not promise accurate color or nits matching.
+
+## Display enablement
+
+With multiple physical displays attached, a checkbox beside each display name
+enables or disables that screen. Its tooltip is **Enable or Disable this display.**
+All screens start enabled by default; the app does not save an automatic disable
+preference. Disabled screens remain listed so they can be enabled again, and
+their brightness sliders are disabled. These controls work independently of
+**Brightness keys**. With only one physical display attached, the checkboxes are
+hidden; with only one enabled, its checkbox cannot be unchecked.
+
+Display switching currently requires Apple silicon and a physical connection
+the app can identify. Mirrored displays, unverified connections, and identical
+monitors without a distinguishing hardware identity cannot be disabled. Audio
+and brightness keep working when display switching is unavailable.
+
+The app requests restoration on quit and system sleep/wake. A separate recovery
+process restores app-disabled screens if the main app crashes or a display
+transport disappears. Recovery intent survives a cable removal while the app is
+running, so reconnecting never requests another disable. Cable recovery and
+menu-bar restoration were physically verified on a MacBook with an LG FULL HD
+display. Sleep/wake coverage remains pending; see the [test plan](Tests/ManualTestPlan.md).
+
+Software brightness is remembered across reconnects and app restarts for monitors
+with a usable, unique vendor/model/serial identity. New displays default to 100%
+until adjusted. Native and DDC brightness are read from the display itself.
 
 ## Verify changes
 

@@ -7,7 +7,24 @@ install_dir="${HOME}/Applications"
 installed_app="${install_dir}/KeyControl Dev.app"
 
 "${repo_dir}/scripts/build-app.sh"
-pkill -f "^${installed_app}/Contents/MacOS/KeyControl( |$)" 2>/dev/null || true
+# A blanket pkill would also kill the process restoring disabled displays.
+python3 - "${installed_app}/Contents/MacOS/KeyControl" <<'PY'
+import subprocess, sys, time
+executable = sys.argv[1]
+def running():
+    commands = subprocess.check_output(['ps', '-axo', 'command='], text=True).splitlines()
+    return [c for c in commands if c == executable or c.startswith(executable + ' ')]
+commands = running()
+if any('--display-prototype' in c for c in commands):
+    raise SystemExit('Finish the bounded display prototype before reinstalling the development app.')
+if any('--display-recovery' not in c for c in commands):
+    subprocess.run(['osascript', '-e', 'tell application id "com.apotenza.KeyControl.dev" to quit'], check=True, timeout=15)
+deadline = time.monotonic() + 12
+while running() and time.monotonic() < deadline:
+    time.sleep(.1)
+if running():
+    raise SystemExit('Development app or display recovery is still running; installation was not changed.')
+PY
 mkdir -p "${install_dir}"
 rm -rf "${installed_app:?}"
 /usr/bin/ditto "${source_app}" "${installed_app}"

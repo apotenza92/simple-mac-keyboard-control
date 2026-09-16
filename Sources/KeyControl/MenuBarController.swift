@@ -18,6 +18,7 @@ final class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
     private var checkItem = NSMenuItem()
     private var updateItem = NSMenuItem()
     private var loginErrorItem = NSMenuItem()
+    private var displayErrorItem = NSMenuItem()
     private var accessibilityItem = NSMenuItem()
     private var inputItem = NSMenuItem()
     private var audioItem = NSMenuItem()
@@ -51,6 +52,10 @@ final class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
         let displaysItem = NSMenuItem()
         displaysItem.view = displayContainer
         menu.addItem(displaysItem)
+        displayErrorItem.title = "Couldn’t change display"
+        displayErrorItem.isEnabled = false
+        displayErrorItem.isHidden = true
+        menu.addItem(displayErrorItem)
         menu.addItem(.separator())
         updateItem = NSMenuItem(title: "Check for updates", action: nil, keyEquivalent: "")
         let scheduleMenu = NSMenu()
@@ -95,12 +100,17 @@ final class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
         for publisher in [model.objectWillChange.eraseToAnyPublisher(),
                           model.audio.objectWillChange.eraseToAnyPublisher(),
                           model.brightness.objectWillChange.eraseToAnyPublisher(),
+                          model.displayConnections.objectWillChange.eraseToAnyPublisher(),
                           model.launchAtLogin.objectWillChange.eraseToAnyPublisher(),
                           updates.objectWillChange.eraseToAnyPublisher()] {
             publisher.receive(on: DispatchQueue.main).sink { [weak self] in self?.refresh() }
                 .store(in: &observations)
         }
         refresh()
+        if Bundle.main.bundleIdentifier == "com.apotenza.KeyControl.dev",
+           ProcessInfo.processInfo.arguments.contains("--display-menu-smoke") {
+            Task { await self.runDisplayMenuSmoke() }
+        }
         if Bundle.main.bundleIdentifier == "com.apotenza.KeyControl.dev",
            ProcessInfo.processInfo.arguments.contains("--show-menu") {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
@@ -148,6 +158,8 @@ final class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
                         value: model.audio.level.isMuted ? 0 : Double(model.audio.level.percent),
                         enabled: model.audio.isEnabled && model.audio.canAdjustVolume)
         refreshDisplays()
+        displayErrorItem.isHidden = model.displayConnections.errorMessage == nil
+        displayErrorItem.toolTip = model.displayConnections.errorMessage
         linkItem.isHidden = model.brightness.displays.count < 2
         linkItem.isEnabled = model.brightness.isEnabled
         setCheckbox(loginItem, checked: model.launchAtLogin.isEnabled)
@@ -213,7 +225,13 @@ final class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
     }
 
     private func refreshDisplays() {
-        let displays = model.brightness.displays
+        // The online brightness list loses disabled displays. Connection inventory
+        // retains them; brightness remains a separate capability and key toggle.
+        let brightness = model.brightness.displays
+        let displays = model.displayConnections.displays.isEmpty
+            ? brightness.map { DisplayConnectionController.Display(id: $0.id, key: "", name: $0.name,
+                isEnabled: true, canToggle: false, physical: false) }
+            : model.displayConnections.displays
         let ids = Set(displays.map(\.id))
         for id in Array(displayRows.keys) where !ids.contains(id) {
             displayRows.removeValue(forKey: id)?.removeFromSuperview()
@@ -224,11 +242,19 @@ final class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
             else {
                 row = NativeMenuSlider(leading: "sun.min.fill", trailing: "sun.max.fill", target: self, action: #selector(adjustBrightness(_:)))
                 row.slider.tag = Int(display.id)
+                row.displayToggle.target = self
+                row.displayToggle.action = #selector(toggleDisplay(_:))
                 displayRows[display.id] = row
                 displayContainer.addSubview(row)
             }
             row.frame.origin.y = CGFloat(displays.count - index - 1) * 62
-            row.update(title: display.name, value: Double(display.percent), enabled: model.brightness.isEnabled && display.canAdjust)
+            let level = brightness.first { $0.id == display.id }
+            row.update(title: display.name, value: Double(level?.percent ?? 100),
+                enabled: display.isEnabled && model.brightness.isEnabled && level?.canAdjust == true)
+            row.updateDisplayToggle(key: display.key, title: display.name,
+                visible: model.displayConnections.showsCheckboxes && display.physical,
+                checked: display.isEnabled,
+                enabled: display.canToggle && !model.displayConnections.isChanging)
         }
         let height = CGFloat(displays.count) * 62
         if displayContainer.frame.height != height {
@@ -243,12 +269,101 @@ final class MenuBarController: NSObject, ObservableObject, NSMenuDelegate {
     @objc private func adjustBrightness(_ sender: NSSlider) {
         model.brightness.set(Int(sender.doubleValue.rounded()), for: UInt32(sender.tag))
     }
+    @objc private func toggleDisplay(_ sender: NSButton) {
+        guard let key = sender.identifier?.rawValue else { return }
+        model.displayConnections.setEnabled(sender.state == .on, for: key)
+    }
+
+    /// Development integration test: native target/actions, no synthetic global
+    /// input, no production automation interface and no saved display preference.
+    private func runDisplayMenuSmoke() async {
+        let defaults = UserDefaults.standard
+        let brightnessWasEnabled = model.brightness.isEnabled
+        var checks: [String] = []
+        defaults.set("running", forKey: "runtimeDisplayMenuSmokeStatus")
+        defaults.removeObject(forKey: "runtimeDisplayMenuSmokeError")
+        func require(_ condition: Bool, _ message: String) throws {
+            if !condition { throw NSError(domain: "DisplayMenuSmoke", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: message]) }
+        }
+        func wait(_ condition: () -> Bool) async throws {
+            for _ in 0..<100 {
+                if condition() { return }
+                try await Task.sleep(nanoseconds: 100_000_000)
+            }
+            try require(false, "Timed out waiting for display state.")
+        }
+        do {
+            try await wait { self.model.displayConnections.displays.count == 2 }
+            refresh()
+            let displays = model.displayConnections.displays
+            guard let builtIn = displays.first(where: { CGDisplayIsBuiltin($0.id) != 0 }),
+                  let external = displays.first(where: { CGDisplayIsBuiltin($0.id) == 0 }) else {
+                throw NSError(domain: "DisplayMenuSmoke", code: 2,
+                    userInfo: [NSLocalizedDescriptionKey: "Requires an open MacBook and one external display."])
+            }
+            for display in displays {
+                let button = displayRows[display.id]!.displayToggle
+                try require(!button.isHidden && button.state == .on && button.isEnabled, "Initial checkbox state is incorrect.")
+                try require(button.toolTip == "Enable or Disable this display.", "Tooltip text differs.")
+            }
+            checks.append("two-visible-checked-controls-and-exact-tooltip")
+            for target in [builtIn, external] {
+                let survivor = target.id == builtIn.id ? external : builtIn
+                if target.id == external.id { model.brightness.isEnabled = false }
+                refresh()
+                displayRows[target.id]!.displayToggle.performClick(nil)
+                try await wait { !self.model.displayConnections.isChanging && self.model.displayConnections.displays.first { $0.key == target.key }?.isEnabled == false }
+                refresh()
+                try require(displayRows[target.id]!.displayToggle.state == .off, "Disabled display row disappeared or stayed checked.")
+                try require(displayRows[target.id]!.displayToggle.isEnabled, "Cannot re-enable disabled display.")
+                try require(!displayRows[target.id]!.slider.isEnabled, "Disabled display's brightness slider is still enabled.")
+                try require(!displayRows[survivor.id]!.displayToggle.isEnabled, "Last-display checkbox is not protected.")
+                // Bypass the disabled button to also test the controller/API guard.
+                model.displayConnections.setEnabled(false, for: survivor.key)
+                try await wait { !self.model.displayConnections.isChanging }
+                try require(model.displayConnections.displays.first { $0.key == survivor.key }?.isEnabled == true,
+                    "Last active display was disabled.")
+                try require(model.displayConnections.errorMessage != nil, "Rejected operation did not report an error.")
+                refresh()
+                displayRows[target.id]!.displayToggle.performClick(nil)
+                try await wait { !self.model.displayConnections.isChanging && self.model.displayConnections.displays.allSatisfy(\.isEnabled) }
+                checks.append("native-checkbox-off-on-last-display-guard-\(target.name)")
+            }
+            model.brightness.isEnabled = brightnessWasEnabled
+            checks.append("display-switching-independent-of-brightness-toggle")
+            let crash = ProcessInfo.processInfo.arguments.contains("--display-menu-crash")
+            let quit = ProcessInfo.processInfo.arguments.contains("--display-menu-quit")
+            if crash || quit {
+                refresh()
+                displayRows[builtIn.id]!.displayToggle.performClick(nil)
+                try await wait { !self.model.displayConnections.isChanging && self.model.displayConnections.displays.first { $0.key == builtIn.key }?.isEnabled == false }
+                checks.append(crash ? "actual-app-ready-for-SIGKILL-with-display-disabled" : "actual-app-ready-for-quit-with-display-disabled")
+                defaults.set(checks, forKey: "runtimeDisplayMenuSmokeChecks")
+                defaults.set(crash ? "ready-for-crash" : "ready-for-quit", forKey: "runtimeDisplayMenuSmokeStatus")
+                defaults.synchronize()
+                if crash { kill(getpid(), SIGKILL) }
+                else { model.quit() }
+                return
+            }
+            defaults.set(checks, forKey: "runtimeDisplayMenuSmokeChecks")
+            defaults.set("passed", forKey: "runtimeDisplayMenuSmokeStatus")
+        } catch {
+            model.brightness.isEnabled = brightnessWasEnabled
+            model.displayConnections.restoreAll()
+            try? await wait { !self.model.displayConnections.isChanging }
+            defaults.set(checks, forKey: "runtimeDisplayMenuSmokeChecks")
+            defaults.set(error.localizedDescription, forKey: "runtimeDisplayMenuSmokeError")
+            defaults.set("failed", forKey: "runtimeDisplayMenuSmokeStatus")
+        }
+    }
 }
 
 /// Standard AppKit controls inherit menu appearance and the user's system accent.
 @MainActor
 private final class NativeMenuSlider: NSView {
     let slider: NSSlider
+    let displayToggle = NSButton(checkboxWithTitle: "", target: nil, action: nil)
     private let titleLabel = NSTextField(labelWithString: "")
 
     init(leading: String, trailing: String, target: AnyObject, action: Selector) {
@@ -258,6 +373,10 @@ private final class NativeMenuSlider: NSView {
         titleLabel.lineBreakMode = .byTruncatingTail
         titleLabel.frame = NSRect(x: 14, y: 36, width: 276, height: 18)
         addSubview(titleLabel)
+        displayToggle.frame = NSRect(x: 272, y: 35, width: 20, height: 20)
+        displayToggle.isHidden = true
+        displayToggle.toolTip = "Enable or Disable this display."
+        addSubview(displayToggle)
         slider.isContinuous = true
         slider.frame = NSRect(x: 40, y: 6, width: 222, height: 24)
         addSubview(slider)
@@ -277,5 +396,14 @@ private final class NativeMenuSlider: NSView {
         slider.setAccessibilityLabel(title)
         slider.doubleValue = value
         slider.isEnabled = enabled
+    }
+
+    func updateDisplayToggle(key: String, title: String, visible: Bool, checked: Bool, enabled: Bool) {
+        displayToggle.identifier = NSUserInterfaceItemIdentifier(key)
+        displayToggle.isHidden = !visible
+        displayToggle.state = checked ? .on : .off
+        displayToggle.isEnabled = enabled
+        displayToggle.setAccessibilityLabel("Enable or Disable \(title)")
+        titleLabel.frame.size.width = visible ? 250 : 276
     }
 }

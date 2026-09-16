@@ -320,3 +320,90 @@ Native menu follow-up, 2026-09-06:
   Reuse the prior hardware baseline for unchanged processing and DDC transport.
 - Native architecture, notarization, archive-signature and actual previous-version
   Sparkle installation gates are required in the tag workflow before publication.
+# Display connection prototype — 2026-09-15
+
+Development-only prototype, not a released checkbox feature. Tested executable:
+`8deeebed24af9cbc1d2be2d91618dadb3508fc3d6c7afdae562c0c8c53ac6267`.
+Built-in Retina Display + LG FULL HD; macOS 27.0 (26A5425a).
+
+- 24 Swift tests and signed development build passed.
+- `scripts/test-display-prototype.py`: bounded built-in off/on and independent
+  recovery after SIGKILL of the controlling prototype process passed, with both
+  screens restored online/active. Evidence: `build/display-prototype/result.json`.
+- First run exposed nil UUID lookup for the disabled panel; explicit restoration
+  recovered it. The corrected prototype uses its freshly verified unique built-in
+  hardware identity. Tests were rerun successfully after the fix.
+- Development-app quit/relaunch lifecycle passed; evidence:
+  `build/display-prototype/lifecycle.json`.
+- Remaining physical checks: built-in goes dark and comes back while LG stays
+  usable; open-lid keyboard/trackpad use; cable unplug/reconnect while built-in
+  is disabled; sleep/wake and lid transitions. External disabling, mirrored and
+  virtual configurations, multiple identical screens and Intel remain untested.
+  Last-survivor and identity guard tests are unit assertions, not physical passes.
+
+### Integrated development build follow-up, 2026-09-15
+
+- Installed executable SHA-256: `f9a205a3125c18af72fc851410db07ed243ea5667b761014e3b76629b07c5761`.
+- 27 Swift tests passed. Native checkbox target-actions, exact tooltip string,
+  last-display guard, normal quit and actual app SIGKILL recovery passed:
+  `build/display-menu/result.json`. These are not physical mouse/hover checks.
+- Cable-test attempt reached its 30-second timeout and restored both displays;
+  no physical disconnect was detected. Unplug recovery remains unverified.
+  Evidence: `build/display-menu/cable-test.log`.
+- A second, coordinated cable test detected physical connection loss and the
+  independent helper restored the built-in display before the timeout. Runtime
+  inventory confirmed the built-in online/active and LG physically absent.
+  Evidence: `build/display-menu/cable-test-ready.log`, same executable hash above.
+  User confirmed the built-in visibly returned and both screens worked after LG
+  reconnection. User also confirmed LG menu-bar icons were missing on reconnect:
+  cable recovery passed, but menu-bar restoration remains a reproduced regression.
+- Screenshot `build/display-menu/lg-after-cable.png` showed only Apple status
+  icons on LG. A one-time SIGTERM of MenuBarAgent let macOS relaunch it, restoring
+  third-party icons in `build/display-menu/lg-after-agent-restart.png`. No saved
+  preferences were changed. This is a diagnostic workaround, not an app fix;
+  user confirmed a plain cable reconnect with both displays enabled restored icons
+  normally. A session-scoped transaction experiment (SHA-256
+  `9bfa940d0536b7261d242ddabbb2755614ca37fd602ada0b51ce6bbc28946359`)
+  passed 27 tests but still lost icons in the coordinated cable test; it was
+  reverted. Evidence: `build/display-menu/cable-session-scope.log`. MenuBarAgent
+  was restarted again to recover the current desktop. No automatic process
+  restart workaround was added to the app.
+- User reports icons from several apps sometimes fail to restore after display
+  switching. This remains unresolved. MenuBarAgent transition logs were retained
+  in `build/display-menu/menubar-system.log`; errors alone do not establish cause.
+- Lifecycle first failed its output-identity assertion as output changed from
+  speakers to AirPods. A second run with the stable AirPods baseline passed:
+  `build/display-menu/lifecycle-airpods.json`. No audible result is asserted.
+
+### Menu-bar regression follow-up, 2026-09-16
+
+- Same MacBook/LG hardware and macOS 27.0 (26A5425a).
+- Isolated probe with main app stopped: cable recovery and all LG icons returned.
+- Main app running: same cable sequence lost icons; final display geometry was
+  unchanged. Turning brightness control off made the same sequence pass.
+- Revised software shades allocate only when needed below 100%, reuse existing
+  panels, and reject transient screens without a valid mode.
+- Installed SHA-256: `56247801b702f69f8dd88fb6d4161718e362388726533120b6111c35f5544db0`.
+- Build/27 tests, signature checks and quit/relaunch lifecycle passed. With
+  brightness enabled, the user confirmed the revised build restored all LG icons
+  after cable recovery. No MenuBarAgent restart was needed for this passing test.
+- Evidence: `build/display-isolation/`, especially `shade-fix-cable.log` and
+  `shade-lifecycle.json`. This supersedes the earlier unresolved result for this
+  tested sequence. Cable transitions while actively dimmed, sleep/wake, and other
+  macOS/hardware combinations are not yet verified.
+
+### Remembered software brightness, 2026-09-16
+
+- Installed SHA-256: `81136e00d54b3f6c25591ada254e43880576673080d60dc8238feee180ec27dd`.
+- 29 tests, signed build and quit/relaunch lifecycle passed; evidence:
+  `build/display-isolation/brightness-memory-lifecycle.json`.
+- User visibly dimmed LG; runtime level was 64%. During the coordinated test,
+  software-disabled built-in display recovered automatically after LG unplug.
+  After LG reconnect, the user confirmed the prior dimmed brightness returned
+  and all menu-bar icons remained visible. No MenuBarAgent restart was used.
+- Evidence: `build/display-isolation/dimmed-memory-cable.log`.
+- Final runtime and saved level were 100%; the user confirmed manually returning
+  the slider to 100% after observing successful dimmed restoration.
+- This covers the previously pending actively dimmed cable transition on this
+  hardware. Sleep/wake, displays without usable serials, duplicate identities,
+  and other hardware/macOS combinations still lack physical verification.

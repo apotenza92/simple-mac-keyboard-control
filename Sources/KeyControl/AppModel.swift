@@ -9,6 +9,7 @@ import PermissionFlow
 final class AppModel: ObservableObject {
     let audio = AudioController()
     let brightness = DDCController()
+    let displayConnections = DisplayConnectionController()
     let launchAtLogin = LaunchAtLoginController()
     private let osd = OSDPresenter()
 
@@ -52,6 +53,11 @@ final class AppModel: ObservableObject {
         let needsSetup = !setupProgress.isComplete
         if !needsSetup || diagnosticsDefaults.bool(forKey: "didRequestSystemAudio") { audio.start() }
         brightness.rediscover()
+        displayConnections.onTopologyChange = { [weak self] in
+            self?.brightness.rediscover()
+            self?.updateBrightnessListener()
+        }
+        displayConnections.start()
         configureKeyCapture(prompt: false)
         updateBrightnessListener()
 
@@ -85,6 +91,7 @@ final class AppModel: ObservableObject {
         ) { [weak self] _ in
             Task { @MainActor in
                 self?.brightness.rediscover()
+                self?.displayConnections.refresh()
                 self?.updateBrightnessListener()
             }
         }
@@ -94,7 +101,10 @@ final class AppModel: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.audio.stop() }
+            Task { @MainActor in
+                self?.displayConnections.restoreAll()
+                self?.audio.stop()
+            }
         })
         if needsSetup || ProcessInfo.processInfo.arguments.contains("--onboarding") { showSetupGuide() }
         workspaceObservers.append(workspaceCenter.addObserver(
@@ -107,6 +117,7 @@ final class AppModel: ObservableObject {
                     self.audio.start()
                 }
                 self?.brightness.rediscover()
+                self?.displayConnections.restoreAll()
                 self?.updateBrightnessListener()
             }
         })
@@ -124,6 +135,7 @@ final class AppModel: ObservableObject {
         keyTap.stop()
         brightnessListener.stop()
         brightness.stop()
+        displayConnections.stop()
         audio.stop()
         started = false
     }

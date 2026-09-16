@@ -75,6 +75,9 @@ public final class DDCController: ObservableObject {
     private let writeI2C: TransferFunction?
     private let readI2C: TransferFunction?
     private let softwareBrightness = SoftwareBrightness()
+    private var brightnessIdentities: [CGDirectDisplayID: String] = [:]
+    private var pendingShades: DispatchWorkItem?
+    private var brightnessMemory: SoftwareBrightnessMemory { .init(defaults: defaults) }
     private var endpoints: [CGDirectDisplayID: Endpoint] = [:]
     private var pendingStatePublish: DispatchWorkItem?
     private var pendingWrites: [CGDirectDisplayID: DispatchWorkItem] = [:]
@@ -130,6 +133,14 @@ public final class DDCController: ObservableObject {
         guard CGGetOnlineDisplayList(count, &ids, &count) == .success else { return }
         isDiscovering = true
         let previous = Dictionary(uniqueKeysWithValues: displays.map { ($0.id, $0) })
+        let identities = ids.prefix(Int(count)).compactMap { id -> (CGDirectDisplayID, String)? in
+            guard CGDisplayIsBuiltin(id) == 0,
+                  let key = SoftwareBrightnessMemory.key(vendor: CGDisplayVendorNumber(id),
+                    model: CGDisplayModelNumber(id), serial: CGDisplaySerialNumber(id)) else { return nil }
+            return (id, key)
+        }
+        let groups = Dictionary(grouping: identities, by: { $0.1 })
+        brightnessIdentities = Dictionary(uniqueKeysWithValues: identities.filter { groups[$0.1]?.count == 1 })
         displays = ids.prefix(Int(count)).map { id in
             let screen = NSScreen.screens.first { Self.screenID($0) == id }
             let native = NativeBrightness.get(id)
@@ -138,7 +149,8 @@ public final class DDCController: ObservableObject {
             let method: Method = !active ? .unavailable : native != nil ? .native : builtIn ? .unavailable : .software
             return Display(id: id, name: screen?.localizedName ?? "Display \(id)",
                            percent: native.map { Int(($0 * 100).rounded()) }
-                            ?? (previous[id]?.method == .software ? previous[id]!.percent : 100),
+                            ?? (brightnessMemory.level(for: brightnessIdentities[id])
+                                ?? (previous[id]?.method == .software ? previous[id]!.percent : 100)),
                            method: method, isBuiltIn: builtIn)
         }
         endpoints.removeAll()
@@ -190,8 +202,19 @@ public final class DDCController: ObservableObject {
     }
 
     private func configureShades() {
-        softwareBrightness.configure(levels: isEnabled
-            ? Dictionary(uniqueKeysWithValues: displays.filter { $0.method == .software }.map { ($0.id, $0.percent) }) : [:])
+        pendingShades?.cancel()
+        // Remove obsolete shades immediately, but wait for display discovery to
+        // settle before creating windows in newly reconstructed display spaces.
+        let retained = Set(displays.filter { $0.method == .software }.map(\.id))
+        softwareBrightness.retainDisplays(isEnabled ? retained : [])
+        guard isEnabled else { return }
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.isEnabled else { return }
+            self.softwareBrightness.configure(levels: Dictionary(uniqueKeysWithValues:
+                self.displays.filter { $0.method == .software }.map { ($0.id, $0.percent) }))
+        }
+        pendingShades = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: work)
     }
 
     /// Read the native master's actual post-key level; macOS applies its own
@@ -304,6 +327,7 @@ public final class DDCController: ObservableObject {
             guard NativeBrightness.set(id, percent: value) else { return }
             snapshot[index].percent = NativeBrightness.get(id).map { Int(($0 * 100).rounded()) } ?? value
         case .software:
+            brightnessMemory.remember(value, for: brightnessIdentities[id])
             softwareBrightness.set(value, for: id)
             snapshot[index].percent = value
         case .ddc:
@@ -368,6 +392,8 @@ public final class DDCController: ObservableObject {
     }
 
     private func cancelWrites() {
+        pendingShades?.cancel()
+        pendingShades = nil
         stopNativeKeyBurst()
         discoveryGeneration += 1
         for work in pendingWrites.values { work.cancel() }

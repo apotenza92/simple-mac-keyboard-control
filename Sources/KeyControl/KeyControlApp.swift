@@ -1,4 +1,5 @@
 import AppKit
+import KeyControlCore
 
 @main
 @MainActor
@@ -8,6 +9,8 @@ final class KeyControlApp: NSObject, NSApplicationDelegate {
     private var menuBar: MenuBarController?
 
     static func main() {
+        if DisplayRecoveryProcess.runIfRequested() { return }
+        if DisplayConnectionPrototype.runIfRequested() { return }
         let application = NSApplication.shared
         let delegate = KeyControlApp()
         application.delegate = delegate
