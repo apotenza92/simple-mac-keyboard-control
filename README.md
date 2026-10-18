@@ -1,5 +1,10 @@
 # Simple Mac Keyboard Control
 
+> [!IMPORTANT]
+> **Simple Mac Keyboard Control is now part of [Simple Mac Fixes](https://github.com/apotenza92/simple-mac-fixes).** Simple Mac Fixes is one free app that combines Macsimize, Dockmint and Simple Mac Keyboard Control. It includes Simple Mac Keyboard Control’s volume and brightness keys for more speakers and screens. Simple Mac Keyboard Control is no longer updated and this repository is archived.
+>
+> [Download Simple Mac Fixes](https://apotenza92.github.io/simple-mac-fixes/) or run `brew install --cask apotenza92/tap/simple-mac-fixes`. Simple Mac Fixes closes Simple Mac Keyboard Control automatically, so you can uninstall it.
+
 <img src="docs/assets/icon.png" alt="Simple Mac Keyboard Control icon" width="96" />
 
 **Volume and brightness. Back on your keyboard.**
